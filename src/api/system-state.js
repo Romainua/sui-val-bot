@@ -27,6 +27,7 @@ async function fetchValidatorsInfo() {
       throw new Error('Some error')
    }
 }
+
 async function getGasPrice() {
    const data = await fetchValidatorsInfo()
 
@@ -66,10 +67,13 @@ function selectValidatorsByVotingPower(validators, targetVotingPower) {
    return { selectedValidators, currentVotingPower }
 }
 
-async function showCurrentState(name) {
+async function showCurrentState(identy) {
+   //identy it's name or suiAddress by validator
    const data = await fetchValidatorsInfo()
    if (data.result && data.result.activeValidators) {
-      const validator = data.result.activeValidators.find((validator) => validator.name === name)
+      const validator = data.result.activeValidators.find(
+         (validator) => validator.name === identy || validator.suiAddress === identy,
+      )
 
       if (validator) {
          return validator
