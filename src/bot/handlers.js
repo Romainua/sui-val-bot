@@ -26,14 +26,22 @@ function attachHandlers(bot) {
       if (waitingForValidatorKey.get(chatId)) {
          if (msg.text === 'Main menu' || msg.text === '/menu') {
             waitingForValidatorKey.set(chatId, false)
+
             bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             return
          }
 
          handleSetKey(bot, chatId, msg.text)
             .then((resp) => {
-               const { signer, address, signerHelper } = resp
-               signerAddrMap.set(chatId, { validator_signer: signer, address: address, signerHelper: signerHelper })
+               const { signer, address, signerHelper, objectOperationCap } = resp
+
+               signerAddrMap.set(chatId, {
+                  validator_signer: signer,
+                  address: address,
+                  signerHelper: signerHelper,
+                  objectOperationCap: objectOperationCap,
+               })
+
                waitingForValidatorKey.set(chatId, false)
                bot.sendMessage(chatId, 'Validator added', getKeyboard())
             })
@@ -69,24 +77,18 @@ function attachHandlers(bot) {
          }
          const validatorSignerAddress = signerAddrMap.get(chatId)
          if (validatorSignerAddress) {
-            const { address, signerHelper } = validatorSignerAddress
-            showCurrentState(address).then(async (resp, err) => {
-               if (resp) {
-                  const objectCap = resp.operationCapId
+            const { signerHelper, objectOperationCap } = validatorSignerAddress
 
-                  bot.sendMessage(chatId, 'Sent request. Wait a moment')
-                  const respTx = await signerHelper.setGasPrice(gasPrice, objectCap)
-                  bot.sendMessage(
-                     chatId,
-                     `Successfully set gas price.\ntx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
-                     getKeyboard(),
-                  )
-               } else if (err) {
-                  console.log('Error to handleValidatorInfo', err)
-               }
+            bot.sendMessage(chatId, 'Sent request. Wait a moment')
+            signerHelper.setGasPrice(gasPrice, objectOperationCap).then((respTx) => {
+               bot.sendMessage(
+                  chatId,
+                  `Successfully set gas price.\ntx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
+                  getKeyboard(),
+               )
             })
-         } else {
-            bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+         } else if (err) {
+            console.log('Error to handleValidatorInfo', err)
          }
 
          // Reset the waiting state
@@ -112,11 +114,15 @@ function attachHandlers(bot) {
             const { signerHelper } = validatorSignerAddress
             bot.sendMessage(chatId, 'Sent request. Wait a moment')
             signerHelper.setCommissionRate(commissionRate).then((respTx) => {
-               bot.sendMessage(
-                  chatId,
-                  `Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
-                  getKeyboard(),
-               )
+               if (respTx.result?.digest) {
+                  bot.sendMessage(
+                     chatId,
+                     `Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
+                     getKeyboard(),
+                  )
+               } else {
+                  bot.sendMessage(chatId, `${respTx}`, getKeyboard())
+               }
             })
          } else {
             bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
@@ -139,9 +145,10 @@ function attachHandlers(bot) {
          const { signerHelper } = getValSignerAddress
          const stakedPoolId = msg.text
 
-         handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId).then((resp) => {
+         handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId).then(async (resp) => {
             if (resp.digest) {
-               bot.sendMessage(chatId, `tx link: https://explorer.sui.io/txblock/${resp.digest}`, getKeyboard())
+               await bot.sendMessage(chatId, `tx link: https://explorer.sui.io/txblock/${resp.digest}`, getKeyboard())
+               bot.answerCallbackQuery(callbackQuery.id)
             } else {
                bot.sendMessage(chatId, `${resp}`)
             }
@@ -202,11 +209,12 @@ function attachHandlers(bot) {
          case 'Show My Validator':
             const valData = signerAddrMap.get(chatId)
             if (valData) {
-               const { address } = valData
-               handleValidatorInfo(bot, chatId, address)
+               const { objectOperationCap } = valData
+               handleValidatorInfo(bot, chatId, objectOperationCap)
             } else {
                bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
             }
+
             break
 
          case 'Show Validator Info':
@@ -239,7 +247,7 @@ function attachHandlers(bot) {
          default:
             bot.sendMessage(
                chatId,
-               "Hello, I'm your menager of your validator. Choose a button to get infromation about validator or add own validator.",
+               "Hello, I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
                getKeyboard(),
             )
       }
@@ -249,42 +257,55 @@ function attachHandlers(bot) {
    bot.on('callback_query', async (callbackQuery) => {
       const chatId = callbackQuery.message.chat.id
       const callBackData = callbackQuery.data
-      const messageId = callbackQuery.message.message_id
 
-      //hide inline keyboard after choose withdraw_all or withdraw_pool
-      const newKeyboard = valWithdrawKeyboard()
-      newKeyboard.inline_keyboard = newKeyboard.inline_keyboard.filter(
-         (row) =>
-            !row.some((button) => button.callback_data === 'withdraw_all' || button.callback_data === 'withdraw_pool'),
-      )
-      bot.editMessageReplyMarkup(newKeyboard, { chat_id: chatId, message_id: messageId })
-
+      //callback for solve withdraw rewards
       if (callBackData === 'withdraw_all') {
          bot.sendMessage(chatId, 'Sent request. Withdrawing all rewards...')
 
          const validatorSignerAddress = signerAddrMap.get(chatId)
-         const { signerHelper } = validatorSignerAddress
 
+         const { signerHelper } = validatorSignerAddress
          const result = await handleWithdrawAllRewards(bot, chatId, signerHelper)
+
          if (result) {
-            bot.sendMessage(chatId, `${result}`)
-         } else {
-            bot.sendMessage(chatId, 'done')
+            await bot.sendMessage(chatId, `${result}`)
+
+            await bot
+               .editMessageReplyMarkup(
+                  { inline_keyboard: [] },
+                  {
+                     chat_id: chatId,
+                     message_id: callbackQuery.message.message_id,
+                  },
+               )
+               .catch((error) => {
+                  console.error('Error updating keyboard:', error)
+               })
+            bot.answerCallbackQuery(callbackQuery.id) //answer to callback request, close download notice
          }
 
-         bot.answerCallbackQuery(callbackQuery.id)
          return
       } else if (callBackData === 'withdraw_pool') {
          waitingForPoolID.set(chatId, true)
-         bot.sendMessage(chatId, 'Input Pool ID or /menu to return :', {
+
+         await bot.sendMessage(chatId, 'Input Pool ID or /menu to return :', {
             reply_markup: {
                keyboard: [[{ text: 'Main menu' }]],
                resize_keyboard: true,
                one_time_keyboard: true,
             },
          })
-         bot.answerCallbackQuery(callbackQuery.id) //answer to callback request, close download notice
+         bot.answerCallbackQuery(callbackQuery.id)
 
+         bot.editMessageReplyMarkup(
+            { inline_keyboard: [] },
+            {
+               chat_id: chatId,
+               message_id: callbackQuery.message.message_id,
+            },
+         ).catch((error) => {
+            console.error('Error updating keyboard:', error)
+         })
          return
       }
 
@@ -310,7 +331,7 @@ function attachHandlers(bot) {
          const jsonKey = JSON.parse(callBackData)
 
          //show by address
-         const address = validatorAdr.address
+         const address = validatorAdr.objectOperationCap
 
          const validatorData = await showCurrentState(address)
 

@@ -72,7 +72,8 @@ async function showCurrentState(identy) {
    const data = await fetchValidatorsInfo()
    if (data.result && data.result.activeValidators) {
       const validator = data.result.activeValidators.find(
-         (validator) => validator.name === identy || validator.suiAddress === identy,
+         (validator) =>
+            validator.name === identy || validator.suiAddress === identy || validator.operationCapId === identy,
       )
       if (validator) {
          return validator

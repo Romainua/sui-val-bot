@@ -40,15 +40,18 @@ class SignerHelper {
 
    async setCommissionRate(commissionRate) {
       const tx = new TransactionBlock()
-
-      tx.moveCall({
-         target: `${packageObjectId}::sui_system::request_set_commission_rate`,
-         arguments: [tx.object('0x5'), tx.pure(commissionRate)],
-      })
-      const result = await this.signer.signAndExecuteTransactionBlock({
-         transactionBlock: tx,
-      })
-      return { result }
+      try {
+         tx.moveCall({
+            target: `${packageObjectId}::sui_system::request_set_commission_rate`,
+            arguments: [tx.object('0x5'), tx.pure(commissionRate)],
+         })
+         const result = await this.signer.signAndExecuteTransactionBlock({
+            transactionBlock: tx,
+         })
+         return { result }
+      } catch (error) {
+         return error.message
+      }
    }
 
    async withdrawRewardsFromPoolId(stakedPoolId) {
@@ -102,6 +105,22 @@ class SignerHelper {
          options: { showType: true, showContent: true },
       })
       return stakedSuiObjects
+   }
+
+   async getOperationCapId() {
+      const address = await this.signer.getAddress()
+
+      const objects = await this.provider.getOwnedObjects({
+         owner: address,
+         options: {
+            showType: true,
+         },
+      })
+
+      const targetType = '0x3::validator_cap::UnverifiedValidatorOperationCap'
+
+      const foundObject = objects.data.find((item) => item.data.type === targetType)
+      return foundObject.data.objectId
    }
 
    async getAddress() {

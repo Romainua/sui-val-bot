@@ -20,8 +20,8 @@ async function handleGetPrice(bot, chatId) {
    }
 }
 
-async function handleValidatorInfo(bot, chatId, name) {
-   const validatorData = await showCurrentState(name)
+async function handleValidatorInfo(bot, chatId, identy) {
+   const validatorData = await showCurrentState(identy)
    if (validatorData) {
       const keyboard = valInfoKeyboard(validatorData)
       bot.sendMessage(chatId, 'Choose a value to display', {
@@ -51,9 +51,15 @@ async function handleSetKey(bot, chatId, key) {
       await signerHelper.initSigner()
       const signer = await signerHelper.getSigner()
       const address = await signerHelper.getAddress()
-      return { signer, address, signerHelper }
+      const objectOperationCap = await signerHelper.getOperationCapId()
+
+      return { signer, address, signerHelper, objectOperationCap }
    } catch (error) {
-      bot.sendMessage(chatId, `${error} The priv key must be in Base64 format.`)
+      if (error.message.includes(`Cannot read properties of undefined (reading 'data')`)) {
+         bot.sendMessage(chatId, `Can't find Object Operation Cap for this key.`)
+      } else if (error.message.includes('Wrong secretKey size. Expected 32 bytes, got 33')) {
+         bot.sendMessage(chatId, `${error} The priv key must be in Base64 format.`)
+      }
    }
 }
 
@@ -82,6 +88,7 @@ async function handleStakedSuiObjects(bot, chatId, signerHelper) {
 
          bot.sendMessage(chatId, `Your reward pools:\n${poolsMessage}`, {
             reply_markup: inlineKeyboard,
+            one_time_keyboard: true,
          })
       } else {
          bot.sendMessage(chatId, `No any staked object`)
@@ -110,7 +117,7 @@ async function handleWithdrawAllRewards(bot, chatId, signerHelper) {
       if (resp.digest) {
          digestArray.push()
       } else {
-         txnsMap.set(obj, " didn't withdraw")
+         txnsMap.set(obj.objectId, " didn't withdraw")
       }
    }
 
