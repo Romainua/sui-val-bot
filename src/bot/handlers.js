@@ -8,7 +8,6 @@ import {
    handleWithdrawAllRewards,
 } from './actions.js'
 import { showCurrentState } from '../api/system-state.js'
-import { valWithdrawKeyboard } from './val-info-keyboard.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map()
