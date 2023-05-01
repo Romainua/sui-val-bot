@@ -2,9 +2,9 @@ function getKeyboard() {
    return {
       reply_markup: {
          keyboard: [
-            [{ text: 'Show Gas Price' }, { text: 'Set Gas' }],
-            [{ text: 'Add Validator' }, { text: 'Show Validator Inf' }],
-            [{ text: 'Show My Validator' }],
+            [{ text: 'Show Gas Price' }, { text: 'Set Gas' }, { text: 'Show My Validator' }],
+            [{ text: 'Add Validator' }, { text: 'Delete Validator' }, { text: 'Show Validator Info' }],
+            [{ text: 'Set Commission Rate' }, { text: 'Withdraw Rewards' }],
          ],
          resize_keyboard: true,
       },

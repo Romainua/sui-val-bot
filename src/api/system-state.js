@@ -74,7 +74,6 @@ async function showCurrentState(identy) {
       const validator = data.result.activeValidators.find(
          (validator) => validator.name === identy || validator.suiAddress === identy,
       )
-
       if (validator) {
          return validator
       } else {

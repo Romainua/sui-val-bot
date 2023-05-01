@@ -1,6 +1,5 @@
-//import setGasPrice from '../api/set-gas-price.js'
 import { getGasPrice, showCurrentState } from '../api/system-state.js'
-import valInfoKeyboard from './val-info-keyboard.js'
+import { valInfoKeyboard, valWithdrawKeyboard } from './val-info-keyboard.js'
 import SignerHelper from '../api/validator-cap.js'
 
 async function handleGetPrice(bot, chatId) {
@@ -36,11 +35,6 @@ async function handleValidatorInfo(bot, chatId, name) {
    }
 }
 
-// async function handleSetGasPrice(bot, chatId) {
-//    const setGasPriceResult = await setGasPrice()
-//    bot.sendMessage(chatId, `tx link: https://explorer.sui.io/txblock/${setGasPriceResult.result.digest}`)
-// }
-
 async function handleAddValidator(bot, chatId) {
    bot.sendMessage(chatId, 'Please enter the key:', {
       reply_markup: {
@@ -57,10 +51,85 @@ async function handleSetKey(bot, chatId, key) {
       await signerHelper.initSigner()
       const signer = await signerHelper.getSigner()
       const address = await signerHelper.getAddress()
-      return { signer, address }
+      return { signer, address, signerHelper }
    } catch (error) {
       bot.sendMessage(chatId, `${error} The priv key must be in Base64 format.`)
    }
 }
 
-export { handleGetPrice, handleValidatorInfo, handleAddValidator, handleSetKey }
+async function handleStakedSuiObjects(bot, chatId, signerHelper) {
+   bot.sendMessage(chatId, 'Sent request. Wait a moment')
+
+   signerHelper.getStakingPoolIdObjects().then((response) => {
+      const filteredObjects = response.data
+         .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
+         .map((item) => item.data)
+
+      if (filteredObjects.length > 0) {
+         let totalTokens = 0
+         const infoStrings = filteredObjects.map((obj) => {
+            const id = obj.content.fields.id.id
+            const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
+            const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
+            totalTokens += reducedPrincipal
+            return `ID: ${id},Tokens: ${formattedPrincipal}`
+         })
+
+         infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
+
+         const poolsMessage = infoStrings.join('\n')
+         const inlineKeyboard = valWithdrawKeyboard()
+
+         bot.sendMessage(chatId, `Your reward pools:\n${poolsMessage}`, {
+            reply_markup: inlineKeyboard,
+         })
+      } else {
+         bot.sendMessage(chatId, `No any staked object`)
+      }
+   })
+}
+
+async function handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId) {
+   bot.sendMessage(chatId, 'Sent request. Wait a moment')
+   const result = await signerHelper.withdrawRewardsFromPoolId(stakedPoolId)
+   return result
+}
+
+async function handleWithdrawAllRewards(bot, chatId, signerHelper) {
+   const digestArray = []
+   const txnsMap = new Map()
+
+   const response = await signerHelper.getStakingPoolIdObjects()
+   const filteredObjects = response.data
+      .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
+      .map((item) => item.data)
+
+   for (const obj of filteredObjects) {
+      const stakedPoolId = obj.objectId
+      const resp = await signerHelper.withdrawRewardsFromPoolId(stakedPoolId)
+      if (resp.digest) {
+         digestArray.push()
+      } else {
+         txnsMap.set(obj, " didn't withdraw")
+      }
+   }
+
+   if (txnsMap) {
+      const formatedArrayMsg = []
+      for (const digest of txnsMap) {
+         formatedArrayMsg.push(digest)
+      }
+      const poolsMessage = formatedArrayMsg.join('\n')
+      return poolsMessage
+   }
+}
+
+export {
+   handleGetPrice,
+   handleValidatorInfo,
+   handleAddValidator,
+   handleSetKey,
+   handleStakedSuiObjects,
+   handleWithdrawFromPoolId,
+   handleWithdrawAllRewards,
+}

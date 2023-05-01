@@ -2,6 +2,9 @@ import { Ed25519Keypair, JsonRpcProvider, RawSigner, TransactionBlock, Connectio
 import dotenv from 'dotenv'
 
 dotenv.config()
+
+const packageObjectId = '0x0000000000000000000000000000000000000000000000000000000000000003'
+
 class SignerHelper {
    constructor(privateKey) {
       this.apiUrl = process.env.apiUrl
@@ -23,9 +26,7 @@ class SignerHelper {
    }
 
    async setGasPrice(gasValue, objectCap) {
-      const packageObjectId = '0x0000000000000000000000000000000000000000000000000000000000000003'
       const tx = new TransactionBlock()
-      console.log('Address', this.signer.getAddress())
 
       tx.moveCall({
          target: `${packageObjectId}::sui_system::request_set_gas_price`,
@@ -37,6 +38,72 @@ class SignerHelper {
       return { result }
    }
 
+   async setCommissionRate(commissionRate) {
+      const tx = new TransactionBlock()
+
+      tx.moveCall({
+         target: `${packageObjectId}::sui_system::request_set_commission_rate`,
+         arguments: [tx.object('0x5'), tx.pure(commissionRate)],
+      })
+      const result = await this.signer.signAndExecuteTransactionBlock({
+         transactionBlock: tx,
+      })
+      return { result }
+   }
+
+   async withdrawRewardsFromPoolId(stakedPoolId) {
+      const tx = new TransactionBlock()
+      try {
+         tx.moveCall({
+            target: `${packageObjectId}::sui_system::request_withdraw_stake`,
+            arguments: [tx.object('0x5'), tx.object(stakedPoolId)],
+         })
+         const result = await this.signer.signAndExecuteTransactionBlock({
+            transactionBlock: tx,
+         })
+         return result
+      } catch (error) {
+         return error
+      }
+   }
+
+   async getTransaction(digestArray) {
+      // const txn = await this.provider.getTransactionBlock({
+      //    digest: 'AoQ3pb6pZRJoSefipRHBECeRkVdgYog1xU9Q7DZGbE2w',
+      //    // only fetch the effects field
+      //    options: {
+      //       showEffects: true,
+      //    },
+      // })
+
+      // You can also fetch multiple transactions in one batch request
+      const txns = await this.provider.multiGetTransactionBlocks({
+         digests: digestArray,
+         // fetch both the input transaction data as well as effects
+         options: {
+            showEffects: true,
+            showInput: true,
+            showEvents: true,
+            showObjectChanges: true,
+            showBalanceChanges: true,
+         },
+      })
+      //console.log(txn.effects.status)
+      //return txns
+      console.log(txns)
+   }
+
+   async getStakingPoolIdObjects() {
+      // If coin type is not specified, it defaults to 0x2::sui::SUI
+      const address = await this.signer.getAddress()
+
+      const stakedSuiObjects = await this.provider.getOwnedObjects({
+         owner: address,
+         options: { showType: true, showContent: true },
+      })
+      return stakedSuiObjects
+   }
+
    async getAddress() {
       return this.signer.getAddress()
    }
@@ -44,7 +111,6 @@ class SignerHelper {
    async getSigner() {
       return this.signer
    }
-   // Добавьте здесь другие функции, использующие this.signer
 }
 
 export default SignerHelper

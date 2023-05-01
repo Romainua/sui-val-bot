@@ -25,4 +25,13 @@ function valInfoKeyboard(validatorData) {
    return keyboard
 }
 
-export default valInfoKeyboard
+const valWithdrawKeyboard = () => {
+   const buttons = [
+      [{ text: 'Withdraw All', callback_data: 'withdraw_all' }],
+      [{ text: 'Withdraw from Pool', callback_data: 'withdraw_pool' }],
+   ]
+
+   return { inline_keyboard: buttons }
+}
+
+export { valInfoKeyboard, valWithdrawKeyboard }
