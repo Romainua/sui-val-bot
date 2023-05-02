@@ -40,6 +40,7 @@ class SignerHelper {
 
    async setCommissionRate(commissionRate) {
       const tx = new TransactionBlock()
+
       try {
          tx.moveCall({
             target: `${packageObjectId}::sui_system::request_set_commission_rate`,
@@ -48,6 +49,7 @@ class SignerHelper {
          const result = await this.signer.signAndExecuteTransactionBlock({
             transactionBlock: tx,
          })
+         console.log(result, commissionRate)
          return { result }
       } catch (error) {
          return error.message
@@ -132,4 +134,16 @@ class SignerHelper {
    }
 }
 
-export default SignerHelper
+async function getStakingPoolIdObjectsByName(address) {
+   const apiUrl = process.env.apiUrl
+   const connection = new Connection({ fullnode: apiUrl })
+   const provider = new JsonRpcProvider(connection)
+
+   const stakedSuiObjects = await provider.getOwnedObjects({
+      owner: address,
+      options: { showType: true, showContent: true },
+   })
+   return stakedSuiObjects
+}
+
+export { SignerHelper, getStakingPoolIdObjectsByName }

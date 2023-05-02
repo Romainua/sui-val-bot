@@ -1,6 +1,7 @@
 import { getGasPrice, showCurrentState } from '../api/system-state.js'
 import { valInfoKeyboard, valWithdrawKeyboard } from './val-info-keyboard.js'
-import SignerHelper from '../api/validator-cap.js'
+import { SignerHelper } from '../api/validator-cap.js'
+import { getStakingPoolIdObjectsByName } from '../api/validator-cap.js'
 
 async function handleGetPrice(bot, chatId) {
    try {
@@ -20,8 +21,24 @@ async function handleGetPrice(bot, chatId) {
    }
 }
 
+async function handleSetCommission(commissionRate, objectOperationCap, signerHelper) {
+   const addressThatAdded = await signerHelper.getAddress()
+
+   const validatroData = await showCurrentState(objectOperationCap)
+
+   const addressMainOwnerCapObject = validatroData.suiAddress
+
+   if (addressThatAdded === addressMainOwnerCapObject) {
+      const response = await signerHelper.setCommissionRate(commissionRate)
+      return response
+   } else {
+      return 'Looks like you added address with Cap Object but, only validator address can set commission.'
+   }
+}
+
 async function handleValidatorInfo(bot, chatId, identy) {
    const validatorData = await showCurrentState(identy)
+
    if (validatorData) {
       const keyboard = valInfoKeyboard(validatorData)
       bot.sendMessage(chatId, 'Choose a value to display', {
@@ -65,37 +82,75 @@ async function handleSetKey(bot, chatId, key) {
    }
 }
 
-async function handleStakedSuiObjects(bot, chatId, signerHelper) {
-   bot.sendMessage(chatId, 'Sent request. Wait a moment')
+async function handleStakedSuiObjects(bot, chatId, objectOperationCap, signerHelper) {
+   const addressThatAdded = await signerHelper.getAddress()
 
-   signerHelper.getStakingPoolIdObjects().then((response) => {
-      const filteredObjects = response.data
-         .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
-         .map((item) => item.data)
+   const validatroData = await showCurrentState(objectOperationCap)
 
-      if (filteredObjects.length > 0) {
-         let totalTokens = 0
-         const infoStrings = filteredObjects.map((obj) => {
-            const id = obj.content.fields.id.id
-            const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
-            const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
-            totalTokens += reducedPrincipal
-            return `ID: ${id},Tokens: ${formattedPrincipal}`
-         })
+   const addressMainOwnerCapObject = validatroData.suiAddress
+   if (addressThatAdded === addressMainOwnerCapObject) {
+      bot.sendMessage(chatId, 'Sent request. Wait a moment')
 
-         infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
+      signerHelper.getStakingPoolIdObjects().then((response) => {
+         const filteredObjects = response.data
+            .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
+            .map((item) => item.data)
 
-         const poolsMessage = infoStrings.join('\n')
-         const inlineKeyboard = valWithdrawKeyboard()
+         if (filteredObjects.length > 0) {
+            let totalTokens = 0
+            const infoStrings = filteredObjects.map((obj) => {
+               const id = obj.content.fields.id.id
+               const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
+               const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
+               totalTokens += reducedPrincipal
+               return `ID: ${id},Tokens: ${formattedPrincipal}`
+            })
 
-         bot.sendMessage(chatId, `Your reward pools:\n${poolsMessage}`, {
-            reply_markup: inlineKeyboard,
-            one_time_keyboard: true,
-         })
-      } else {
-         bot.sendMessage(chatId, `No any staked object`)
-      }
-   })
+            infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
+
+            const poolsMessage = infoStrings.join('\n')
+            const inlineKeyboard = valWithdrawKeyboard()
+
+            bot.sendMessage(chatId, `Your reward pools:\n${poolsMessage}`, {
+               reply_markup: inlineKeyboard,
+               one_time_keyboard: true,
+            })
+         } else {
+            bot.sendMessage(chatId, `No any staked object`)
+         }
+      })
+   } else {
+      bot.sendMessage(chatId, `Looks like you added address with Cap Object but, only validator address can withdraw.`)
+   }
+}
+
+async function handleStakedSuiObjectsByName(address) {
+   const response = await getStakingPoolIdObjectsByName(address)
+
+   const filteredObjects = response.data
+      .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
+      .map((item) => item.data)
+
+   if (filteredObjects.length > 0) {
+      let totalTokens = 0
+
+      const infoStrings = filteredObjects.map((obj) => {
+         const id = obj.content.fields.id.id
+
+         const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
+         const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
+         totalTokens += reducedPrincipal
+
+         return `ID: ${id},Tokens: ${formattedPrincipal}`
+      })
+
+      infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
+      const poolsMessage = infoStrings.join('\n')
+
+      return poolsMessage
+   } else {
+      return `No any staked object`
+   }
 }
 
 async function handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId) {
@@ -144,4 +199,6 @@ export {
    handleStakedSuiObjects,
    handleWithdrawFromPoolId,
    handleWithdrawAllRewards,
+   handleStakedSuiObjectsByName,
+   handleSetCommission,
 }

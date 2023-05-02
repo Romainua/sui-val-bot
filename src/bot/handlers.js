@@ -6,6 +6,8 @@ import {
    handleStakedSuiObjects,
    handleWithdrawFromPoolId,
    handleWithdrawAllRewards,
+   handleStakedSuiObjectsByName,
+   handleSetCommission,
 } from './actions.js'
 import { showCurrentState } from '../api/system-state.js'
 
@@ -16,12 +18,13 @@ const signerAddrMap = new Map()
 const waitingForGasPrice = new Map()
 const waitingForCommissionRate = new Map()
 const waitingForPoolID = new Map()
+const waitingValidatorNameForRewards = new Map()
 
 function attachHandlers(bot) {
    bot.on('message', (msg) => {
       const chatId = msg.chat.id
 
-      //show my validator & add validator waiting
+      //show my validator & add validator waiting key
       if (waitingForValidatorKey.get(chatId)) {
          if (msg.text === 'Main menu' || msg.text === '/menu') {
             waitingForValidatorKey.set(chatId, false)
@@ -45,7 +48,7 @@ function attachHandlers(bot) {
                bot.sendMessage(chatId, 'Validator added', getKeyboard())
             })
             .catch((err) => {
-               bot.sendMessage(chatId, `${err}`, getKeyboard())
+               console.log('Error handling key', err)
             })
          bot.deleteMessage(chatId, msg.message_id)
          return
@@ -109,25 +112,35 @@ function attachHandlers(bot) {
          }
 
          const commissionRate = msg.text
+
          if (isNaN(commissionRate) || Number(commissionRate) < 0) {
             bot.sendMessage(chatId, 'Invalid input. Please enter a positive number.')
             return
          }
          const validatorSignerAddress = signerAddrMap.get(chatId)
          if (validatorSignerAddress) {
-            const { signerHelper } = validatorSignerAddress
+            const { objectOperationCap, signerHelper } = validatorSignerAddress
+
             bot.sendMessage(chatId, 'Sent request. Wait a moment')
-            signerHelper.setCommissionRate(commissionRate).then((respTx) => {
-               if (respTx.result?.digest) {
-                  bot.sendMessage(
-                     chatId,
-                     `Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
-                     getKeyboard(),
-                  )
-               } else {
-                  bot.sendMessage(chatId, `${respTx}`, getKeyboard())
-               }
-            })
+            handleSetCommission(commissionRate, objectOperationCap, signerHelper)
+               .then((response) => {
+                  if (response.result?.digest) {
+                     bot.sendMessage(
+                        chatId,
+                        `Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${response.result?.digest}`,
+                        getKeyboard(),
+                     )
+                  } else {
+                     bot.sendMessage(chatId, `${response}`, getKeyboard())
+                  }
+               })
+               .catch((err) => {
+                  if (err.message.includes(`No valid gas coins found for the transaction.`)) {
+                     bot.sendMessage(chatId, `${err} Get some gas coins for pay tx.`, getKeyboard())
+                  } else {
+                     bot.sendMessage(chatId, `${err}`)
+                  }
+               })
          } else {
             bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
          }
@@ -162,6 +175,35 @@ function attachHandlers(bot) {
          return
       }
 
+      //set waiting validator name for check rewards
+      if (waitingValidatorNameForRewards.get(chatId)) {
+         if (msg.text === 'Main menu' || msg.text === '/menu') {
+            waitingValidatorNameForRewards.set(chatId, false)
+
+            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
+
+            return
+         }
+
+         const valName = msg.text
+
+         showCurrentState(valName)
+            .then(async (resp) => {
+               waitingValidatorNameForRewards.set(chatId, false)
+
+               const validatorAddress = resp.suiAddress
+
+               await bot.sendMessage(chatId, 'Sent request. Wait a moment')
+
+               const listofStakedObjects = await handleStakedSuiObjectsByName(validatorAddress)
+               bot.sendMessage(chatId, `${resp.name} reward pools:\n${listofStakedObjects}`, getKeyboard())
+            })
+
+            .catch(() => {
+               bot.sendMessage(chatId, 'Error to get objects')
+            })
+         return
+      }
       switch (msg.text) {
          case 'Add Validator':
             bot.sendMessage(chatId, 'Please input the key or /menu to return:', {
@@ -245,19 +287,34 @@ function attachHandlers(bot) {
          case 'Withdraw Rewards':
             if (signerAddrMap.has(chatId)) {
                const validatorSignerAddress = signerAddrMap.get(chatId)
-               const { signerHelper } = validatorSignerAddress
-               handleStakedSuiObjects(bot, chatId, signerHelper)
+               const { signerHelper, objectOperationCap } = validatorSignerAddress
+               handleStakedSuiObjects(bot, chatId, objectOperationCap, signerHelper)
             } else {
                bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
             }
             break
 
+         case 'Show Rewards By Validator Name':
+            bot.sendMessage(chatId, 'Input validator name:', {
+               reply_markup: {
+                  keyboard: [[{ text: 'Main menu' }]],
+                  resize_keyboard: true,
+                  one_time_keyboard: true,
+               },
+            })
+
+            waitingValidatorNameForRewards.set(chatId, true)
+
+            break
+
          case 'Main menu':
             bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             break
+
          case '/menu':
             bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             break
+
          default:
             bot.sendMessage(
                chatId,
