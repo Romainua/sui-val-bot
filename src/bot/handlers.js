@@ -10,6 +10,7 @@ import {
    handleSetCommission,
 } from './actions.js'
 import { showCurrentState } from '../api-interaction/system-state.js'
+import logger from '../handle-logs/logger.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map()
@@ -20,9 +21,15 @@ const waitingForCommissionRate = new Map()
 const waitingForPoolID = new Map()
 const waitingValidatorNameForRewards = new Map()
 
+const totalOpenConnection = new Map()
+
 function attachHandlers(bot) {
    bot.on('message', (msg) => {
       const chatId = msg.chat.id
+      const username = msg.from.username
+
+      totalOpenConnection.set(chatId, username)
+      logger.info(`Total open connections ${totalOpenConnection.size}`)
 
       //show my validator & add validator waiting key
       if (waitingForValidatorKey.get(chatId)) {
@@ -207,6 +214,7 @@ function attachHandlers(bot) {
 
       switch (msg.text) {
          case 'Add Validator':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Add Validator`)
             bot.sendMessage(chatId, 'Please input the key or /menu to return:', {
                reply_markup: {
                   keyboard: [[{ text: 'Main menu' }]],
@@ -218,6 +226,8 @@ function attachHandlers(bot) {
             break
 
          case 'Delete Validator':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Delete Validator`)
+
             if (signerAddrMap.has(chatId)) {
                signerAddrMap.clear()
                bot.sendMessage(chatId, 'Deleted')
@@ -227,10 +237,14 @@ function attachHandlers(bot) {
             break
 
          case 'Show Gas Price':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show Gas Price`)
+
             handleGetPrice(bot, chatId)
             break
 
          case 'Set Gas':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Set Gas`)
+
             if (signerAddrMap.has(chatId)) {
                bot.sendMessage(chatId, 'Enter gas price for next epoch or /menu to return:', {
                   reply_markup: {
@@ -246,6 +260,8 @@ function attachHandlers(bot) {
             break
 
          case 'Set Commission Rate':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Set Commission Rate`)
+
             if (signerAddrMap.has(chatId)) {
                bot.sendMessage(chatId, 'Input commision rate for next epoch or /menu to return:', {
                   reply_markup: {
@@ -261,6 +277,8 @@ function attachHandlers(bot) {
             break
 
          case 'Show My Validator':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show My Validator`)
+
             if (signerAddrMap.has(chatId)) {
                validatorNames.clear()
 
@@ -275,6 +293,8 @@ function attachHandlers(bot) {
             break
 
          case 'Show Another Validator':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show Another Validator`)
+
             bot.sendMessage(chatId, 'Input validator name:', {
                reply_markup: {
                   keyboard: [[{ text: 'Main menu' }]],
@@ -286,6 +306,8 @@ function attachHandlers(bot) {
             break
 
          case 'Withdraw Rewards':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Withdraw Rewards`)
+
             if (signerAddrMap.has(chatId)) {
                const validatorSignerAddress = signerAddrMap.get(chatId)
                const { signerHelper, objectOperationCap } = validatorSignerAddress
@@ -296,6 +318,8 @@ function attachHandlers(bot) {
             break
 
          case 'Show Rewards By Validator Name':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show Rewards By Validator Name`)
+
             bot.sendMessage(chatId, 'Input validator name:', {
                reply_markup: {
                   keyboard: [[{ text: 'Main menu' }]],
@@ -309,14 +333,20 @@ function attachHandlers(bot) {
             break
 
          case 'Main menu':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used Main menu`)
+
             bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             break
 
          case '/menu':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used /menu`)
+
             bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             break
 
          default:
+            logger.info(`User ${msg.from.username} (${msg.from.id}) called default`)
+
             bot.sendMessage(
                chatId,
                "Hello, I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
@@ -399,7 +429,7 @@ function attachHandlers(bot) {
             })
          }
       } else if (validatorAdr) {
-         //when validator added it use for Show My Validator
+         //when validator added it use for Show My Validator by address
          const jsonKey = JSON.parse(callBackData)
 
          //show by address
