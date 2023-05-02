@@ -204,6 +204,7 @@ function attachHandlers(bot) {
             })
          return
       }
+
       switch (msg.text) {
          case 'Add Validator':
             bot.sendMessage(chatId, 'Please input the key or /menu to return:', {
