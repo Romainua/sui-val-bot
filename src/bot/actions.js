@@ -59,6 +59,8 @@ async function handleSetKey(bot, chatId, key) {
          bot.sendMessage(chatId, `Can't find Object Operation Cap for this key.`)
       } else if (error.message.includes('Wrong secretKey size. Expected 32 bytes, got 33')) {
          bot.sendMessage(chatId, `${error} The priv key must be in Base64 format.`)
+      } else {
+         bot.sendMessage(chatId, `The priv key must be in Base64 format.`)
       }
    }
 }
@@ -105,29 +107,32 @@ async function handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId)
 async function handleWithdrawAllRewards(bot, chatId, signerHelper) {
    const digestArray = []
    const txnsMap = new Map()
+   try {
+      const response = await signerHelper.getStakingPoolIdObjects()
+      const filteredObjects = response.data
+         .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
+         .map((item) => item.data)
 
-   const response = await signerHelper.getStakingPoolIdObjects()
-   const filteredObjects = response.data
-      .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
-      .map((item) => item.data)
-
-   for (const obj of filteredObjects) {
-      const stakedPoolId = obj.objectId
-      const resp = await signerHelper.withdrawRewardsFromPoolId(stakedPoolId)
-      if (resp.digest) {
-         digestArray.push()
-      } else {
-         txnsMap.set(obj.objectId, " didn't withdraw")
+      for (const obj of filteredObjects) {
+         const stakedPoolId = obj.objectId
+         const resp = await signerHelper.withdrawRewardsFromPoolId(stakedPoolId)
+         if (resp.digest) {
+            digestArray.push()
+         } else {
+            txnsMap.set(obj.objectId, " didn't withdraw")
+         }
       }
-   }
 
-   if (txnsMap) {
-      const formatedArrayMsg = []
-      for (const digest of txnsMap) {
-         formatedArrayMsg.push(digest)
+      if (txnsMap) {
+         const formatedArrayMsg = []
+         for (const digest of txnsMap) {
+            formatedArrayMsg.push(digest)
+         }
+         const poolsMessage = formatedArrayMsg.join('\n')
+         return poolsMessage
       }
-      const poolsMessage = formatedArrayMsg.join('\n')
-      return poolsMessage
+   } catch (error) {
+      return 'Withdrawing error'
    }
 }
 

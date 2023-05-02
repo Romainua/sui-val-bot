@@ -44,7 +44,9 @@ function attachHandlers(bot) {
                waitingForValidatorKey.set(chatId, false)
                bot.sendMessage(chatId, 'Validator added', getKeyboard())
             })
-            .catch((err) => {})
+            .catch((err) => {
+               bot.sendMessage(chatId, `${err}`, getKeyboard())
+            })
          bot.deleteMessage(chatId, msg.message_id)
          return
       }
@@ -58,6 +60,7 @@ function attachHandlers(bot) {
          }
          validatorNames.set(chatId, msg.text)
          handleValidatorInfo(bot, chatId, msg.text)
+         waitingForValidatorName.set(chatId, false)
          return
       }
 
@@ -74,21 +77,23 @@ function attachHandlers(bot) {
             bot.sendMessage(chatId, 'Invalid input. Please enter a positive number.')
             return
          }
-         const validatorSignerAddress = signerAddrMap.get(chatId)
-         if (validatorSignerAddress) {
-            const { signerHelper, objectOperationCap } = validatorSignerAddress
 
-            bot.sendMessage(chatId, 'Sent request. Wait a moment')
-            signerHelper.setGasPrice(gasPrice, objectOperationCap).then((respTx) => {
+         const validatorSignerAddress = signerAddrMap.get(chatId)
+         const { signerHelper, objectOperationCap } = validatorSignerAddress
+
+         bot.sendMessage(chatId, 'Sent request. Wait a moment')
+         signerHelper
+            .setGasPrice(gasPrice, objectOperationCap)
+            .then((respTx) => {
                bot.sendMessage(
                   chatId,
                   `Successfully set gas price.\ntx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
                   getKeyboard(),
                )
             })
-         } else if (err) {
-            console.log('Error to handleValidatorInfo', err)
-         }
+            .catch((err) => {
+               bot.sendMessage(chatId, `${err.message}`, getKeyboard())
+            })
 
          // Reset the waiting state
          waitingForGasPrice.set(chatId, false)
@@ -170,8 +175,7 @@ function attachHandlers(bot) {
             break
 
          case 'Delete Validator':
-            const isMapHasKey = signerAddrMap.get(chatId)
-            if (isMapHasKey) {
+            if (signerAddrMap.has(chatId)) {
                signerAddrMap.clear()
                bot.sendMessage(chatId, 'Deleted')
             } else {
@@ -184,31 +188,42 @@ function attachHandlers(bot) {
             break
 
          case 'Set Gas':
-            bot.sendMessage(chatId, 'Enter gas price for next epoch or /menu to return:', {
-               reply_markup: {
-                  keyboard: [[{ text: 'Main menu' }]],
-                  resize_keyboard: true,
-                  one_time_keyboard: true,
-               },
-            })
-            waitingForGasPrice.set(chatId, true)
+            if (signerAddrMap.has(chatId)) {
+               bot.sendMessage(chatId, 'Enter gas price for next epoch or /menu to return:', {
+                  reply_markup: {
+                     keyboard: [[{ text: 'Main menu' }]],
+                     resize_keyboard: true,
+                     one_time_keyboard: true,
+                  },
+               })
+               waitingForGasPrice.set(chatId, true)
+            } else {
+               bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+            }
             break
 
          case 'Set Commission Rate':
-            bot.sendMessage(chatId, 'Input commision rate for next epoch or /menu to return:', {
-               reply_markup: {
-                  keyboard: [[{ text: 'Main menu' }]],
-                  resize_keyboard: true,
-                  one_time_keyboard: true,
-               },
-            })
-            waitingForCommissionRate.set(chatId, true)
+            if (signerAddrMap.has(chatId)) {
+               bot.sendMessage(chatId, 'Input commision rate for next epoch or /menu to return:', {
+                  reply_markup: {
+                     keyboard: [[{ text: 'Main menu' }]],
+                     resize_keyboard: true,
+                     one_time_keyboard: true,
+                  },
+               })
+               waitingForCommissionRate.set(chatId, true)
+            } else {
+               bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+            }
             break
 
          case 'Show My Validator':
-            const valData = signerAddrMap.get(chatId)
-            if (valData) {
+            if (signerAddrMap.has(chatId)) {
+               validatorNames.clear()
+
+               const valData = signerAddrMap.get(chatId)
                const { objectOperationCap } = valData
+
                handleValidatorInfo(bot, chatId, objectOperationCap)
             } else {
                bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
@@ -216,7 +231,7 @@ function attachHandlers(bot) {
 
             break
 
-         case 'Show Validator Info':
+         case 'Show Another Validator':
             bot.sendMessage(chatId, 'Input validator name:', {
                reply_markup: {
                   keyboard: [[{ text: 'Main menu' }]],
@@ -228,8 +243,8 @@ function attachHandlers(bot) {
             break
 
          case 'Withdraw Rewards':
-            const validatorSignerAddress = signerAddrMap.get(chatId)
-            if (validatorSignerAddress) {
+            if (signerAddrMap.has(chatId)) {
+               const validatorSignerAddress = signerAddrMap.get(chatId)
                const { signerHelper } = validatorSignerAddress
                handleStakedSuiObjects(bot, chatId, signerHelper)
             } else {
@@ -259,6 +274,16 @@ function attachHandlers(bot) {
 
       //callback for solve withdraw rewards
       if (callBackData === 'withdraw_all') {
+         bot.editMessageReplyMarkup(
+            { inline_keyboard: [] },
+            {
+               chat_id: chatId,
+               message_id: callbackQuery.message.message_id,
+            },
+         ).catch((error) => {
+            console.error('Error updating keyboard:', error)
+         })
+
          bot.sendMessage(chatId, 'Sent request. Withdrawing all rewards...')
 
          const validatorSignerAddress = signerAddrMap.get(chatId)
@@ -268,23 +293,22 @@ function attachHandlers(bot) {
 
          if (result) {
             await bot.sendMessage(chatId, `${result}`)
-
-            await bot
-               .editMessageReplyMarkup(
-                  { inline_keyboard: [] },
-                  {
-                     chat_id: chatId,
-                     message_id: callbackQuery.message.message_id,
-                  },
-               )
-               .catch((error) => {
-                  console.error('Error updating keyboard:', error)
-               })
             bot.answerCallbackQuery(callbackQuery.id) //answer to callback request, close download notice
+         } else {
+            console.log(result)
          }
 
          return
       } else if (callBackData === 'withdraw_pool') {
+         bot.editMessageReplyMarkup(
+            { inline_keyboard: [] },
+            {
+               chat_id: chatId,
+               message_id: callbackQuery.message.message_id,
+            },
+         ).catch((error) => {
+            console.error('Error updating keyboard:', error)
+         })
          waitingForPoolID.set(chatId, true)
 
          await bot.sendMessage(chatId, 'Input Pool ID or /menu to return :', {
@@ -296,15 +320,6 @@ function attachHandlers(bot) {
          })
          bot.answerCallbackQuery(callbackQuery.id)
 
-         bot.editMessageReplyMarkup(
-            { inline_keyboard: [] },
-            {
-               chat_id: chatId,
-               message_id: callbackQuery.message.message_id,
-            },
-         ).catch((error) => {
-            console.error('Error updating keyboard:', error)
-         })
          return
       }
 
@@ -319,7 +334,7 @@ function attachHandlers(bot) {
          if (validatorData && validatorData.hasOwnProperty(jsonKey.key)) {
             const value = validatorData[jsonKey.key]
 
-            bot.sendMessage(chatId, `${jsonKey.key}: ${value}`)
+            bot.sendMessage(chatId, `${jsonKey.key}: ${value}`, getKeyboard())
          } else {
             bot.answerCallbackQuery(callbackQuery.id, {
                text: 'Error: Validator data not found.',
@@ -337,7 +352,7 @@ function attachHandlers(bot) {
          if (validatorData && validatorData.hasOwnProperty(jsonKey.key)) {
             const value = validatorData[jsonKey.key]
 
-            bot.sendMessage(chatId, `${jsonKey.key}: ${value}`)
+            bot.sendMessage(chatId, `${jsonKey.key}: ${value}`, getKeyboard())
          } else {
             bot.answerCallbackQuery(callbackQuery.id, {
                text: 'Error: Validator data not found.',
