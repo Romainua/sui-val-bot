@@ -1,5 +1,5 @@
 {
-   "name": "my-telegram-bot",
+   "name": "sui-validator-bot",
    "version": "1.0.0",
    "description": "",
    "main": "index.js",
@@ -7,8 +7,12 @@
       "start": "node src/index.js",
       "test": "echo \"Error: no test specified\" && exit 1"
    },
-   "keywords": [],
-   "author": "",
+   "keywords": [
+      "Bot",
+      "Sui",
+      "Validator Bot"
+   ],
+   "author": "Roman O",
    "license": "ISC",
    "dependencies": {
       "@mysten/sui.js": "^0.32.1",
