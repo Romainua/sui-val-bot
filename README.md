@@ -24,7 +24,7 @@ not cap operations:
 -  withdraw rewards (from one pool or all)
 -  show validator rewards by name
 
-You can play with bot on testnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
+You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
 
 **Please do not send your private key! Otherwise, deploy your own bot**
 
