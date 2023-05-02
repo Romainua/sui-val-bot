@@ -24,6 +24,11 @@ not cap operations:
 -  withdraw rewards (from one pool or all)
 -  show validator rewards by name
 
+You can play with bot on testnet
+[t.me/sui_validator_bot](t.me/sui_validator_bot)
+
+**Please do not send your private key! Otherwise, deploy your own bot**
+
 ## Deploying
 
 1. Cloning this repo
@@ -47,6 +52,8 @@ sudo docker build -t sui-validator-bot .
 ```
 sudo docker run -d --name sui-validator-bot --restart=always sui-validator-bot
 ```
+
+**Do not recommended use your validator key, although it is deleted after the signature is created. The best practice would be to transfer [`UnverifiedValidatorOperationCap`](https://github.com/MystenLabs/sui/blob/main/nre/sui_for_node_operators.md#operation-cap) to another address**
 
 ## Disclaimer
 
