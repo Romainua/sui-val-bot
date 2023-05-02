@@ -335,13 +335,13 @@ function attachHandlers(bot) {
          case 'Main menu':
             logger.info(`User ${msg.from.username} (${msg.from.id}) used Main menu`)
 
-            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
+            bot.sendMessage(chatId, 'Mainnet network. Choose a button', getKeyboard())
             break
 
          case '/menu':
             logger.info(`User ${msg.from.username} (${msg.from.id}) used /menu`)
 
-            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
+            bot.sendMessage(chatId, 'Mainnet network. Choose a button', getKeyboard())
             break
 
          default:
@@ -349,7 +349,7 @@ function attachHandlers(bot) {
 
             bot.sendMessage(
                chatId,
-               "Hello, I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
+               "Hello, I'm your manager of your validator. Choose a button to get infromation about validator or add own validator. Mainnet network.",
                getKeyboard(),
             )
       }
