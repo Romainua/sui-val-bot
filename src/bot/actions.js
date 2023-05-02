@@ -1,7 +1,7 @@
-import { getGasPrice, showCurrentState } from '../api/system-state.js'
-import { valInfoKeyboard, valWithdrawKeyboard } from './val-info-keyboard.js'
-import { SignerHelper } from '../api/validator-cap.js'
-import { getStakingPoolIdObjectsByName } from '../api/validator-cap.js'
+import { getGasPrice, showCurrentState } from '../api-interaction/system-state.js'
+import { valInfoKeyboard, valWithdrawKeyboard } from './keyboards/val-info-keyboard.js'
+import { SignerHelper } from '../api-interaction/validator-cap.js'
+import { getStakingPoolIdObjectsByName } from '../api-interaction/validator-cap.js'
 
 async function handleGetPrice(bot, chatId) {
    try {

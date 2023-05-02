@@ -1,4 +1,4 @@
-import getKeyboard from './keyboard.js'
+import getKeyboard from './keyboards/keyboard.js'
 import {
    handleGetPrice,
    handleValidatorInfo,
@@ -9,7 +9,7 @@ import {
    handleStakedSuiObjectsByName,
    handleSetCommission,
 } from './actions.js'
-import { showCurrentState } from '../api/system-state.js'
+import { showCurrentState } from '../api-interaction/system-state.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map()
