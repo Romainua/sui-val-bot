@@ -68,20 +68,16 @@ function selectValidatorsByVotingPower(validators, targetVotingPower) {
 }
 
 async function showCurrentState(identy) {
-   //identy it's name or suiAddress by validator
-   const data = await fetchValidatorsInfo()
-   if (data.result && data.result.activeValidators) {
+   //identy it's name or suiAddress or object cap by validator
+   try {
+      const data = await fetchValidatorsInfo()
       const validator = data.result.activeValidators.find(
          (validator) =>
             validator.name === identy || validator.suiAddress === identy || validator.operationCapId === identy,
       )
-      if (validator) {
-         return validator
-      } else {
-         return false
-      }
-   } else {
-      return false
+      return validator
+   } catch (err) {
+      return null
    }
 }
 

@@ -1,4 +1,3 @@
-import getKeyboard from './keyboards/keyboard.js'
 import {
    handleGetPrice,
    handleValidatorInfo,
@@ -11,9 +10,11 @@ import {
 } from './actions.js'
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from '../handle-logs/logger.js'
+import getKeyboard from './keyboards/keyboard.js'
+import { valInfoKeyboard } from './keyboards/val-info-keyboard.js'
 
 const waitingForValidatorName = new Map() //map for validator name
-const validatorNames = new Map()
+const validatorNames = new Map() //map to get name for call callback fn, used name as argument
 const waitingForValidatorKey = new Map()
 const signerAddrMap = new Map()
 const waitingForGasPrice = new Map()
@@ -37,22 +38,29 @@ function attachHandlers(bot) {
             waitingForValidatorKey.set(chatId, false)
 
             bot.sendMessage(chatId, 'Choose a button', getKeyboard())
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used Main menu on set key.`)
+
             return
          }
 
          handleSetKey(bot, chatId, msg.text)
             .then((resp) => {
-               const { signer, address, signerHelper, objectOperationCap } = resp
+               if (resp) {
+                  const { signer, address, signerHelper, objectOperationCap } = resp
 
-               signerAddrMap.set(chatId, {
-                  validator_signer: signer,
-                  address: address,
-                  signerHelper: signerHelper,
-                  objectOperationCap: objectOperationCap,
-               })
+                  signerAddrMap.set(chatId, {
+                     validator_signer: signer,
+                     address: address,
+                     signerHelper: signerHelper,
+                     objectOperationCap: objectOperationCap,
+                  })
 
-               waitingForValidatorKey.set(chatId, false)
-               bot.sendMessage(chatId, 'Validator added', getKeyboard())
+                  waitingForValidatorKey.set(chatId, false)
+
+                  bot.sendMessage(chatId, 'Validator added', getKeyboard())
+
+                  logger.info(`User ${msg.from.username} (${msg.from.id}) validator added`)
+               }
             })
             .catch((err) => {
                console.log('Error handling key', err)
@@ -68,9 +76,17 @@ function attachHandlers(bot) {
             bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             return
          }
-         validatorNames.set(chatId, msg.text)
-         handleValidatorInfo(bot, chatId, msg.text)
-         waitingForValidatorName.set(chatId, false)
+
+         const validatorName = msg.text
+
+         validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callbacl button
+
+         handleValidatorInfo(bot, chatId, validatorName).then((resp) => {
+            if (resp) {
+               waitingForValidatorName.set(chatId, false)
+            }
+         })
+
          return
       }
 
@@ -100,6 +116,8 @@ function attachHandlers(bot) {
                   `Successfully set gas price.\ntx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
                   getKeyboard(),
                )
+
+               logger.info(`User ${msg.from.username} (${msg.from.id}) successfully set gas price`)
             })
             .catch((err) => {
                bot.sendMessage(chatId, `${err.message}`, getKeyboard())
@@ -137,6 +155,8 @@ function attachHandlers(bot) {
                         `Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${response.result?.digest}`,
                         getKeyboard(),
                      )
+
+                     logger.info(`User ${msg.from.username} (${msg.from.id}) successfully set commission.`)
                   } else {
                      bot.sendMessage(chatId, `${response}`, getKeyboard())
                   }
@@ -172,7 +192,9 @@ function attachHandlers(bot) {
          handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId).then(async (resp) => {
             if (resp.digest) {
                await bot.sendMessage(chatId, `tx link: https://explorer.sui.io/txblock/${resp.digest}`, getKeyboard())
-               bot.answerCallbackQuery(callbackQuery.id)
+               logger.info(`User ${msg.from.username} (${msg.from.id}) withdraw from pool.`)
+
+               logger.info(`User ${msg.from.username} (${msg.from.id}) successfully withdraw from pool`)
             } else {
                bot.sendMessage(chatId, `${resp}`)
             }
@@ -196,18 +218,21 @@ function attachHandlers(bot) {
 
          showCurrentState(valName)
             .then(async (resp) => {
-               waitingValidatorNameForRewards.set(chatId, false)
-
                const validatorAddress = resp.suiAddress
 
                await bot.sendMessage(chatId, 'Sent request. Wait a moment')
 
                const listofStakedObjects = await handleStakedSuiObjectsByName(validatorAddress)
+
                bot.sendMessage(chatId, `${resp.name} reward pools:\n${listofStakedObjects}`, getKeyboard())
+
+               waitingValidatorNameForRewards.set(chatId, false)
+
+               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool`)
             })
 
             .catch(() => {
-               bot.sendMessage(chatId, 'Error to get objects')
+               bot.sendMessage(chatId, "Can't find validator")
             })
          return
       }
@@ -233,6 +258,7 @@ function attachHandlers(bot) {
                bot.sendMessage(chatId, 'Deleted')
             } else {
                bot.sendMessage(chatId, 'Validator not added')
+               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
             }
             break
 
@@ -256,6 +282,7 @@ function attachHandlers(bot) {
                waitingForGasPrice.set(chatId, true)
             } else {
                bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
             }
             break
 
@@ -273,6 +300,7 @@ function attachHandlers(bot) {
                waitingForCommissionRate.set(chatId, true)
             } else {
                bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
             }
             break
 
@@ -288,6 +316,7 @@ function attachHandlers(bot) {
                handleValidatorInfo(bot, chatId, objectOperationCap)
             } else {
                bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
             }
 
             break
@@ -314,6 +343,7 @@ function attachHandlers(bot) {
                handleStakedSuiObjects(bot, chatId, objectOperationCap, signerHelper)
             } else {
                bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
             }
             break
 
@@ -362,6 +392,10 @@ function attachHandlers(bot) {
 
       //callback for solve withdraw rewards
       if (callBackData === 'withdraw_all') {
+         logger.info(
+            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback withdraw_all`,
+         )
+
          bot.editMessageReplyMarkup(
             { inline_keyboard: [] },
             {
@@ -388,6 +422,10 @@ function attachHandlers(bot) {
 
          return
       } else if (callBackData === 'withdraw_pool') {
+         logger.info(
+            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback withdraw_pool`,
+         )
+
          bot.editMessageReplyMarkup(
             { inline_keyboard: [] },
             {
@@ -416,6 +454,11 @@ function attachHandlers(bot) {
 
       if (validatorName) {
          const jsonKey = JSON.parse(callBackData)
+
+         logger.info(
+            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback ${jsonKey.key}`,
+         )
+
          //show by name
          const validatorData = await showCurrentState(validatorName)
 
@@ -431,6 +474,10 @@ function attachHandlers(bot) {
       } else if (validatorAdr) {
          //when validator added it use for Show My Validator by address
          const jsonKey = JSON.parse(callBackData)
+
+         logger.info(
+            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback ${jsonKey.key}`,
+         )
 
          //show by address
          const address = validatorAdr.objectOperationCap

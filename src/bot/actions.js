@@ -74,11 +74,10 @@ async function handleSetKey(bot, chatId, key) {
    } catch (error) {
       if (error.message.includes(`Cannot read properties of undefined (reading 'data')`)) {
          bot.sendMessage(chatId, `Can't find Object Operation Cap for this key.`)
-      } else if (error.message.includes('Wrong secretKey size. Expected 32 bytes, got 33')) {
-         bot.sendMessage(chatId, `${error} The priv key must be in Base64 format.`)
       } else {
-         bot.sendMessage(chatId, `The priv key must be in Base64 format.`)
+         bot.sendMessage(chatId, `The private key must be in Base64 format.`)
       }
+      return null
    }
 }
 
