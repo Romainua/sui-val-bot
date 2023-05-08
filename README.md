@@ -1,4 +1,4 @@
-# Sui Validator Bot
+# Sui Validator Bot with db
 
 This bot is manager of your validator. Bot uses:
 
@@ -23,6 +23,7 @@ not cap operations:
 -  show another validator by name
 -  withdraw rewards (from one pool or all)
 -  show validator rewards by name
+-  save user data and chat id to db
 
 You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
 
@@ -31,7 +32,8 @@ You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_valid
 ## Deploying
 
 1. Cloning this repo
-2. Creating .env file into sui-val-bot dir with following info:
+2. Run your PostgresSQL server (you can use Amazon RDS)
+3. Creating .env file into sui-val-bot dir with following info:
 
 ```
 TELEGRAM_BOT_TOKEN=<SOME_TOKEN>
@@ -45,8 +47,6 @@ PGDATABASE=
 ```
 
 recommended to use the endpoint `https://fullnode.testnet.sui.io`
-
-\*If you want to run with db change brunch to `db-impl`
 
 3. For this step install docker. Build docker image.
 
