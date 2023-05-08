@@ -31,6 +31,9 @@ You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_valid
 ## Deploying
 
 1. Cloning this repo
+
+_If you want use bot with db change the branch to `db-impl` and follow the README there_
+
 2. Creating .env file into sui-val-bot dir with following info:
 
 ```
