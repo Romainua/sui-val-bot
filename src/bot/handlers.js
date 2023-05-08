@@ -7,10 +7,12 @@ import {
    handleWithdrawAllRewards,
    handleStakedSuiObjectsByName,
    handleSetCommission,
+   handleStartCommand,
 } from './actions.js'
 import { showCurrentState } from '../api-interaction/system-state.js'
-import logger from '../handle-logs/logger.js'
+import logger from './handle-logs/logger.js'
 import getKeyboard from './keyboards/keyboard.js'
+import ClientDb from '../db-interaction/db-hendlers.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
@@ -24,12 +26,27 @@ const waitingValidatorNameForRewards = new Map()
 const totalOpenConnection = new Map()
 
 function attachHandlers(bot) {
+   //send msgs to users when bot have been updated
+   ;(async () => {
+      const dataBaseClient = new ClientDb()
+
+      await dataBaseClient.connect()
+
+      const usersData = await dataBaseClient.getAllData()
+
+      await dataBaseClient.end()
+      for (let dataUser of usersData) {
+         const chatId = dataUser.id
+         const username = dataUser.data.first_name
+         bot.sendMessage(
+            chatId,
+            `Hello, ${username} I was updated. Check latest updates https://github.com/Romainua/sui-val-bot`,
+         )
+      }
+   })()
+
    bot.on('message', (msg) => {
       const chatId = msg.chat.id
-      const username = msg.from.username
-
-      totalOpenConnection.set(chatId, username)
-      logger.info(`Total open connections ${totalOpenConnection.size}`)
 
       //show my validator & add validator waiting key
       if (waitingForValidatorKey.get(chatId)) {
@@ -375,6 +392,23 @@ function attachHandlers(bot) {
             logger.info(`User ${msg.from.username} (${msg.from.id}) used /menu`)
 
             bot.sendMessage(chatId, 'Mainnet network. Choose a button', getKeyboard())
+            break
+
+         case '/start':
+            logger.info(`User ${msg.from.username} (${msg.from.id}) used /start`)
+
+            const username = msg.from.username
+            totalOpenConnection.set(chatId, username)
+
+            logger.info(`Total open connections ${totalOpenConnection.size}`)
+
+            bot.sendMessage(
+               chatId,
+               "Hello, I'm your manager of your validator. Choose a button to get infromation about validator or add own validator. Mainnet network.",
+               getKeyboard(),
+            )
+            handleStartCommand(msg, chatId)
+
             break
 
          default:

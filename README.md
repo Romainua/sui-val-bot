@@ -36,9 +36,17 @@ You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_valid
 ```
 TELEGRAM_BOT_TOKEN=<SOME_TOKEN>
 apiUrl=https://fullnode.testnet.sui.io
+
+#data for connect db
+PGHOST=
+PGUSER=
+PGPASSWORD=
+PGDATABASE=
 ```
 
 recommended to use the endpoint `https://fullnode.testnet.sui.io`
+
+\*If you want to run with db change brunch to `db-impl`
 
 3. For this step install docker. Build docker image.
 
@@ -46,7 +54,7 @@ recommended to use the endpoint `https://fullnode.testnet.sui.io`
 sudo docker build -t sui-validator-bot .
 ```
 
-4. Then run new container with iamge
+4. Then run new container with image
 
 ```
 sudo docker run -d --name sui-validator-bot --restart=always sui-validator-bot

@@ -2,6 +2,8 @@ import { getGasPrice, showCurrentState } from '../api-interaction/system-state.j
 import { valInfoKeyboard, valWithdrawKeyboard } from './keyboards/val-info-keyboard.js'
 import { SignerHelper } from '../api-interaction/validator-cap.js'
 import { getStakingPoolIdObjectsByName } from '../api-interaction/validator-cap.js'
+import ClientDb from '../db-interaction/db-hendlers.js'
+import logger from './handle-logs/logger.js'
 
 async function handleGetPrice(bot, chatId) {
    try {
@@ -192,6 +194,26 @@ async function handleWithdrawAllRewards(bot, chatId, signerHelper) {
    }
 }
 
+async function handleStartCommand(msg, chatId) {
+   try {
+      const dataBaseClient = new ClientDb()
+
+      await dataBaseClient.connect()
+
+      await dataBaseClient.createTableIfNotExists()
+
+      const userData = msg.from
+
+      await dataBaseClient.insertData(chatId, userData)
+
+      await dataBaseClient.end()
+
+      logger.info(`${JSON.stringify(userData)} saved to db`)
+   } catch (error) {
+      logger.error(`Error save to db: ${error.message}`)
+   }
+}
+
 export {
    handleGetPrice,
    handleValidatorInfo,
@@ -202,4 +224,5 @@ export {
    handleWithdrawAllRewards,
    handleStakedSuiObjectsByName,
    handleSetCommission,
+   handleStartCommand,
 }
