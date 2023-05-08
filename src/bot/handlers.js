@@ -8,7 +8,9 @@ import {
    handleStakedSuiObjectsByName,
    handleSetCommission,
    handleStartCommand,
+   handleNotifyForUpdateBot,
 } from './actions.js'
+
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from './handle-logs/logger.js'
 import getKeyboard from './keyboards/keyboard.js'
@@ -27,26 +29,12 @@ const totalOpenConnection = new Map()
 
 function attachHandlers(bot) {
    //send msgs to users when bot have been updated
-   ;(async () => {
-      const dataBaseClient = new ClientDb()
-
-      await dataBaseClient.connect()
-
-      const usersData = await dataBaseClient.getAllData()
-
-      await dataBaseClient.end()
-      for (let dataUser of usersData) {
-         const chatId = dataUser.id
-         const username = dataUser.data.first_name
-         bot.sendMessage(
-            chatId,
-            `Hello, ${username} I was updated. Check latest updates https://github.com/Romainua/sui-val-bot`,
-         )
-      }
-   })()
+   handleNotifyForUpdateBot(bot)
 
    bot.on('message', (msg) => {
       const chatId = msg.chat.id
+      //save to db user data for first time
+      handleStartCommand(msg, chatId)
 
       //show my validator & add validator waiting key
       if (waitingForValidatorKey.get(chatId)) {
@@ -407,6 +395,7 @@ function attachHandlers(bot) {
                "Hello, I'm your manager of your validator. Choose a button to get infromation about validator or add own validator. Mainnet network.",
                getKeyboard(),
             )
+            //add user data to db
             handleStartCommand(msg, chatId)
 
             break

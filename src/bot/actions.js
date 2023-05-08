@@ -214,6 +214,31 @@ async function handleStartCommand(msg, chatId) {
    }
 }
 
+async function handleNotifyForUpdateBot(bot) {
+   const dataBaseClient = new ClientDb()
+
+   await dataBaseClient.connect()
+   await dataBaseClient.createTableIfNotExists()
+
+   dataBaseClient
+      .getAllData()
+      .then(async (usersData) => {
+         await dataBaseClient.end()
+         for (let dataUser of usersData) {
+            const chatId = dataUser.id
+            const username = dataUser.data.first_name
+
+            bot.sendMessage(
+               chatId,
+               `Hello, ${username} I was updated. Check latest updates https://github.com/Romainua/sui-val-bot`,
+            )
+         }
+      })
+      .catch((err) => {
+         console.log(err, "db doesn't have data")
+      })
+}
+
 export {
    handleGetPrice,
    handleValidatorInfo,
@@ -225,4 +250,5 @@ export {
    handleStakedSuiObjectsByName,
    handleSetCommission,
    handleStartCommand,
+   handleNotifyForUpdateBot,
 }
