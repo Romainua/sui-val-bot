@@ -11,7 +11,6 @@ import {
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from '../handle-logs/logger.js'
 import getKeyboard from './keyboards/keyboard.js'
-import { valInfoKeyboard } from './keyboards/val-info-keyboard.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
@@ -79,9 +78,11 @@ function attachHandlers(bot) {
 
          const validatorName = msg.text
 
-         validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callbacl button
+         validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callback button
 
          handleValidatorInfo(bot, chatId, validatorName).then((resp) => {
+            logger.info(`User ${msg.from.username} (${msg.from.id}) showed validator data by ${validatorName}`)
+
             if (resp) {
                waitingForValidatorName.set(chatId, false)
             }
@@ -121,6 +122,7 @@ function attachHandlers(bot) {
             })
             .catch((err) => {
                bot.sendMessage(chatId, `${err.message}`, getKeyboard())
+               logger.error(`User ${msg.from.username} (${msg.from.id}) error set gas price`)
             })
 
          // Reset the waiting state
@@ -142,7 +144,9 @@ function attachHandlers(bot) {
             bot.sendMessage(chatId, 'Invalid input. Please enter a positive number.')
             return
          }
+
          const validatorSignerAddress = signerAddrMap.get(chatId)
+
          if (validatorSignerAddress) {
             const { objectOperationCap, signerHelper } = validatorSignerAddress
 
@@ -192,7 +196,6 @@ function attachHandlers(bot) {
          handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId).then(async (resp) => {
             if (resp.digest) {
                await bot.sendMessage(chatId, `tx link: https://explorer.sui.io/txblock/${resp.digest}`, getKeyboard())
-               logger.info(`User ${msg.from.username} (${msg.from.id}) withdraw from pool.`)
 
                logger.info(`User ${msg.from.username} (${msg.from.id}) successfully withdraw from pool`)
             } else {
@@ -220,7 +223,7 @@ function attachHandlers(bot) {
             .then(async (resp) => {
                const validatorAddress = resp.suiAddress
 
-               await bot.sendMessage(chatId, 'Sent request. Wait a moment')
+               bot.sendMessage(chatId, 'Sent request. Wait a moment')
 
                const listofStakedObjects = await handleStakedSuiObjectsByName(validatorAddress)
 
@@ -228,7 +231,7 @@ function attachHandlers(bot) {
 
                waitingValidatorNameForRewards.set(chatId, false)
 
-               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool`)
+               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
             })
 
             .catch(() => {
@@ -456,7 +459,7 @@ function attachHandlers(bot) {
          const jsonKey = JSON.parse(callBackData)
 
          logger.info(
-            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback ${jsonKey.key}`,
+            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback with key: ${jsonKey.key} for ${validatorName}`,
          )
 
          //show by name
@@ -476,7 +479,7 @@ function attachHandlers(bot) {
          const jsonKey = JSON.parse(callBackData)
 
          logger.info(
-            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback ${jsonKey.key}`,
+            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback with key: ${jsonKey.key} for ${validatorAdr}`,
          )
 
          //show by address

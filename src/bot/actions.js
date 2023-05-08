@@ -41,11 +41,13 @@ async function handleValidatorInfo(bot, chatId, identy) {
 
    if (validatorData) {
       const keyboard = valInfoKeyboard(validatorData)
+
       bot.sendMessage(chatId, 'Choose a value to display', {
          reply_markup: keyboard,
          one_time_keyboard: false,
          resize_keyboard: true,
       })
+
       return validatorData
    } else {
       bot.sendMessage(chatId, `Can't find validator`)

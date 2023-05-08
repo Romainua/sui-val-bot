@@ -35,6 +35,7 @@ class SignerHelper {
       const result = await this.signer.signAndExecuteTransactionBlock({
          transactionBlock: tx,
       })
+
       return { result }
    }
 
@@ -49,7 +50,7 @@ class SignerHelper {
          const result = await this.signer.signAndExecuteTransactionBlock({
             transactionBlock: tx,
          })
-         console.log(result, commissionRate)
+
          return { result }
       } catch (error) {
          return error.message
