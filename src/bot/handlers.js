@@ -437,10 +437,10 @@ function attachHandlers(bot) {
          const validatorSignerAddress = signerAddrMap.get(chatId)
 
          const { signerHelper } = validatorSignerAddress
-         const result = await handleWithdrawAllRewards(bot, chatId, signerHelper)
+         const result = await handleWithdrawAllRewards(signerHelper)
 
          if (result) {
-            await bot.sendMessage(chatId, `${result}`)
+            bot.sendMessage(chatId, `${result}`)
             bot.answerCallbackQuery(callbackQuery.id) //answer to callback request, close download notice
          } else {
             console.log(result)
