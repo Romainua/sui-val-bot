@@ -14,7 +14,6 @@ import {
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from './handle-logs/logger.js'
 import getKeyboard from './keyboards/keyboard.js'
-import ClientDb from '../db-interaction/db-hendlers.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
@@ -33,8 +32,6 @@ function attachHandlers(bot) {
 
    bot.on('message', (msg) => {
       const chatId = msg.chat.id
-      //save to db user data for first time
-      handleStartCommand(msg, chatId)
 
       //show my validator & add validator waiting key
       if (waitingForValidatorKey.get(chatId)) {
@@ -396,7 +393,7 @@ function attachHandlers(bot) {
                getKeyboard(),
             )
             //add user data to db
-            handleStartCommand(msg, chatId)
+            handleStartCommand(chatId, msg)
 
             break
 

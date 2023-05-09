@@ -198,7 +198,7 @@ async function handleWithdrawAllRewards(signerHelper) {
    }
 }
 
-async function handleStartCommand(msg, chatId) {
+async function handleStartCommand(chatId, msg) {
    try {
       const dataBaseClient = new ClientDb()
 
@@ -212,7 +212,7 @@ async function handleStartCommand(msg, chatId) {
 
       await dataBaseClient.end()
 
-      logger.info(`${JSON.stringify(userData)} saved to db`)
+      logger.info(`Data: ${JSON.stringify(userData)} saved to db`)
    } catch (error) {
       logger.error(`Error save to db: ${error.message}`)
    }
@@ -228,6 +228,7 @@ async function handleNotifyForUpdateBot(bot) {
       .getAllData()
       .then(async (usersData) => {
          await dataBaseClient.end()
+
          for (let dataUser of usersData) {
             const chatId = dataUser.id
             const username = dataUser.data.first_name
@@ -239,7 +240,7 @@ async function handleNotifyForUpdateBot(bot) {
          }
       })
       .catch((err) => {
-         console.log(err, "db doesn't have data")
+         logger.error(`db doesn't have data: ${err}`)
       })
 }
 

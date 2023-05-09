@@ -1,4 +1,5 @@
 import dotenv from 'dotenv'
+import logger from '../bot/handle-logs/logger'
 import pkg from 'pg'
 const { Client } = pkg
 
@@ -20,15 +21,15 @@ class ClientDb extends Client {
    async connect() {
       super
          .connect()
-         .then(() => console.log('connected'))
-         .catch((err) => console.error('connection error', err.stack))
+         .then(() => logger.info('Connected to db'))
+         .catch((err) => logger.error(`Connection error ${err.stack}`))
    }
 
    async end() {
       super
          .end()
-         .then(() => console.log('closed connection'))
-         .catch((err) => console.error('closed error', err.stack))
+         .then(() => logger.info('Closed connection'))
+         .catch((err) => logger.error(`Closed connection error ${err.stack}`))
    }
 
    async createTableIfNotExists() {
@@ -38,9 +39,9 @@ class ClientDb extends Client {
         data JSONB
       );
     `
-
       await this.query(queryText)
-      console.log('Table created or already exists')
+
+      logger.info('Table created or already exists')
    }
 
    async insertData(id, value) {
@@ -49,17 +50,19 @@ class ClientDb extends Client {
       VALUES ($1, $2)
       ON CONFLICT (id) DO UPDATE SET data = $2;
     `
-
       await this.query(queryText, [id, value])
-      console.log('Data inserted or updated')
+
+      logger.info('Data inserted or updated')
    }
 
    async getAllData() {
       try {
          const result = await this.query('SELECT * FROM user_data')
+
          return result.rows
       } catch (err) {
-         console.error('Error executing query', err.stack)
+         logger.error(`Error executing query ${err.stack}`)
+
          return null
       }
    }
