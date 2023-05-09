@@ -160,9 +160,10 @@ async function handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId)
    return result
 }
 
-async function handleWithdrawAllRewards(bot, chatId, signerHelper) {
-   const digestArray = []
-   const txnsMap = new Map()
+async function handleWithdrawAllRewards(signerHelper) {
+   const digestArray = [] //array of withdraw from pool digests
+   const failObjectIDs = new Map() //map of unsuccesses digests key is pool id
+
    try {
       const response = await signerHelper.getStakingPoolIdObjects()
       const filteredObjects = response.data
@@ -173,18 +174,21 @@ async function handleWithdrawAllRewards(bot, chatId, signerHelper) {
          const stakedPoolId = obj.objectId
          const resp = await signerHelper.withdrawRewardsFromPoolId(stakedPoolId)
          if (resp.digest) {
-            digestArray.push()
+            digestArray.push(resp.digest)
          } else {
-            txnsMap.set(obj.objectId, " didn't withdraw")
+            failObjectIDs.push(obj.objectId)
          }
       }
 
-      if (txnsMap) {
-         const formatedArrayMsg = []
-         for (const digest of txnsMap) {
-            formatedArrayMsg.push(digest)
-         }
-         const poolsMessage = formatedArrayMsg.join('\n')
+      if (failObjectIDs.length > 0) {
+         failObjectIDs.unshift("Didn' withdraw pools for some reasons:")
+         const poolsMessage = failObjectIDs.join('\n')
+
+         return poolsMessage
+      } else if (digestArray.length > 0) {
+         digestArray.unshift('Withdraw digests:')
+         const poolsMessage = digestArray.join('\n')
+
          return poolsMessage
       }
    } catch (error) {
