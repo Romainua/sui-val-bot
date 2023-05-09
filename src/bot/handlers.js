@@ -313,7 +313,7 @@ function attachHandlers(bot) {
             logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show My Validator`)
 
             if (signerAddrMap.has(chatId)) {
-               validatorNames.clear()
+               validatorNames.clear() //clear current validator for get data
 
                const valData = signerAddrMap.get(chatId)
                const { objectOperationCap } = valData
@@ -498,10 +498,6 @@ function attachHandlers(bot) {
          //when validator added it use for Show My Validator by address
          const jsonKey = JSON.parse(callBackData)
 
-         logger.info(
-            `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback with key: ${jsonKey.key} for ${validatorAdr}`,
-         )
-
          //show by address
          const address = validatorAdr.objectOperationCap
 
@@ -511,6 +507,10 @@ function attachHandlers(bot) {
             const value = validatorData[jsonKey.key]
 
             bot.sendMessage(chatId, `${jsonKey.key}: ${value}`, getKeyboard())
+
+            logger.info(
+               `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback with key: ${jsonKey.key} for ${validatorData.name}`,
+            )
          } else {
             bot.answerCallbackQuery(callbackQuery.id, {
                text: 'Error: Validator data not found.',
