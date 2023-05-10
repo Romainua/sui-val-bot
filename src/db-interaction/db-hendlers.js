@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import logger from '../bot/handle-logs/logger'
+import logger from '../bot/handle-logs/logger.js'
 import pkg from 'pg'
 const { Client } = pkg
 

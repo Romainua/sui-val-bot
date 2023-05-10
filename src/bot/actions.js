@@ -235,7 +235,7 @@ async function handleNotifyForUpdateBot(bot) {
 
             bot.sendMessage(
                chatId,
-               `Hello, ${username} I was updated. Check latest updates https://github.com/Romainua/sui-val-bot`,
+               `Hello, ${username} bot was updated. Check latest updates https://github.com/Romainua/sui-val-bot \nI would recommend deploy your own bot (follow the README on repository), then you can use bot safely for: \n- set commission rate for next epoch \n- set gas price for next epoch \n- withdraw rewards from pool or all \n`,
             )
          }
       })
