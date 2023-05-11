@@ -2,6 +2,10 @@ import { getGasPrice, showCurrentState } from '../api-interaction/system-state.j
 import { valInfoKeyboard, valWithdrawKeyboard } from './keyboards/val-info-keyboard.js'
 import { SignerHelper } from '../api-interaction/validator-cap.js'
 import { getStakingPoolIdObjectsByName } from '../api-interaction/validator-cap.js'
+import createWebSocketConnection from '../api-interaction/subscribe.js'
+import { unsubscribeCallBackButton } from './keyboards/keyboard.js'
+
+const subscribesArray = []
 
 async function handleGetPrice(bot, chatId) {
    try {
@@ -196,6 +200,50 @@ async function handleWithdrawAllRewards(signerHelper) {
    }
 }
 
+async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName) {
+   const subscribeData = {}
+
+   createWebSocketConnection(validatorIdenty, async (data) => {
+      const parsedData = JSON.parse(data) //convert answer to json
+
+      if (parsedData.params?.result) {
+         const {
+            params: {
+               result: {
+                  id: { txDigest },
+                  parsedJson: { amount, validator_address },
+               },
+            },
+         } = parsedData
+
+         const reducedAmount = Number(amount) / 1e9
+
+         bot.sendMessage(
+            chatId,
+            `New delegetion to ${valName}\nAmount: ${reducedAmount} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
+         )
+      } else {
+         bot.sendMessage(chatId, `Subscribe for add stake notifications to ${valName}`)
+
+         Object.assign(subscribeData, { name: valName, id: parsedData.result, type: 'Add stake subscription' })
+
+         subscribesArray.push(subscribeData)
+      }
+   }).then((ws) => {
+      subscribeData.ws = ws
+   })
+}
+
+async function handleTotalSubscribtions(bot, chatId, msg) {
+   bot.editMessageText('Choose for unsubscribe.', {
+      chat_id: chatId,
+      message_id: msg.message_id,
+      reply_markup: {
+         inline_keyboard: unsubscribeCallBackButton(subscribesArray),
+      },
+   })
+}
+
 export {
    handleGetPrice,
    handleValidatorInfo,
@@ -206,4 +254,6 @@ export {
    handleWithdrawAllRewards,
    handleStakedSuiObjectsByName,
    handleSetCommission,
+   handleStakeWsSubscribe,
+   handleTotalSubscribtions,
 }

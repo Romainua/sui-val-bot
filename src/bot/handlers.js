@@ -7,10 +7,13 @@ import {
    handleWithdrawAllRewards,
    handleStakedSuiObjectsByName,
    handleSetCommission,
+   handleStakeWsSubscribe,
+   handleTotalSubscribtions,
 } from './actions.js'
+
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from '../handle-logs/logger.js'
-import getKeyboard from './keyboards/keyboard.js'
+import { getKeyboard, subscribeKeyBoard, backReply } from './keyboards/keyboard.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
@@ -20,6 +23,7 @@ const waitingForGasPrice = new Map()
 const waitingForCommissionRate = new Map()
 const waitingForPoolID = new Map()
 const waitingValidatorNameForRewards = new Map()
+const waitingForValidatorNameForWsConnection = new Map()
 
 const totalOpenConnection = new Map()
 
@@ -240,6 +244,23 @@ function attachHandlers(bot) {
          return
       }
 
+      //set waiting validator name for add stake subscribe
+      if (waitingForValidatorNameForWsConnection.get(chatId)) {
+         const validatorName = msg.text
+
+         showCurrentState(validatorName)
+            .then((data) => {
+               const valAddress = data.suiAddress
+
+               handleStakeWsSubscribe(bot, chatId, valAddress, validatorName)
+               waitingForValidatorNameForWsConnection.set(chatId, false)
+            })
+            .catch(() => {
+               bot.sendMessage(chatId, "Can't find validator")
+            })
+         return
+      }
+
       switch (msg.text) {
          case 'Add Validator':
             logger.info(`User ${msg.from.username} (${msg.from.id}) used function Add Validator`)
@@ -371,6 +392,12 @@ function attachHandlers(bot) {
             bot.sendMessage(chatId, 'Mainnet network. Choose a button', getKeyboard())
             break
 
+         case 'Delegate notifications':
+            bot.sendMessage(chatId, 'Subscribe to stakes events. Choose event.', {
+               reply_markup: subscribeKeyBoard(),
+            })
+            break
+
          case '/menu':
             logger.info(`User ${msg.from.username} (${msg.from.id}) used /menu`)
 
@@ -392,6 +419,45 @@ function attachHandlers(bot) {
    bot.on('callback_query', async (callbackQuery) => {
       const chatId = callbackQuery.message.chat.id
       const callBackData = callbackQuery.data
+      const msg = callbackQuery.message
+
+      switch (callBackData) {
+         case 'Delegation':
+            bot.editMessageText('Input validator name:', {
+               chat_id: chatId,
+               message_id: msg.message_id,
+               reply_markup: backReply(),
+            }).then(() => {
+               waitingForValidatorNameForWsConnection.set(chatId, true)
+            })
+
+            break
+         case 'Undelegation':
+            bot.editMessageText('Input validator name:', {
+               chat_id: chatId,
+               message_id: msg.message_id,
+               reply_markup: backReply(),
+            }).then(() => {
+               waitingForValidatorNameForWsConnection.set(chatId, true)
+            })
+
+            break
+         case 'Check current':
+            handleTotalSubscribtions(bot, chatId, msg)
+            break
+         case 'back_button':
+            waitingForValidatorNameForWsConnection.set(chatId, false)
+
+            bot.editMessageText('Subscribe to stakes events. Choose event.', {
+               chat_id: chatId,
+               message_id: msg.message_id,
+               reply_markup: subscribeKeyBoard(),
+            })
+            break
+         default:
+            bot.sendMessage(chatId, `Unknown command:`)
+            break
+      }
 
       //callback for solve withdraw rewards
       if (callBackData === 'withdraw_all') {
@@ -496,10 +562,6 @@ function attachHandlers(bot) {
                text: 'Error: Validator data not found.',
             })
          }
-      } else {
-         bot.answerCallbackQuery(callbackQuery.id, {
-            text: 'Error: Validator name not found.',
-         })
       }
       bot.answerCallbackQuery(callbackQuery.id)
    })
