@@ -2,17 +2,31 @@ function getKeyboard() {
    return {
       reply_markup: {
          keyboard: [
-            [
-               { text: 'Show Rewards By Validator Name' },
-               { text: 'Show Gas Price' },
-               { text: 'Show Another Validator' },
-               { text: 'Delegate notifications' },
-            ],
-            [{ text: 'Add Validator' }, { text: 'Delete Validator' }, { text: 'Set Gas' }],
-            [{ text: 'Set Commission Rate' }, { text: 'Withdraw Rewards' }, { text: 'Show My Validator' }],
+            [{ text: 'Set Stake Notifications' }, { text: 'Show Gas Price' }],
+            [{ text: 'Show Rewards By Validator Name' }, { text: 'Show Validator Info By Validator Name' }],
+            [{ text: 'Validator Control' }],
          ],
          resize_keyboard: true,
       },
+   }
+}
+
+function validatroControlKeyboard() {
+   return {
+      inline_keyboard: [
+         [
+            { text: 'Add Validator', callback_data: 'add_validator' },
+            { text: 'Show My Validator Info', callback_data: 'show_my_validator' },
+         ],
+         [
+            { text: 'Set Gas Price', callback_data: 'set_gas_price' },
+            { text: 'Set Commission Rate', callback_data: 'set_commission_rate' },
+         ],
+         [
+            { text: 'Withdraw Rewards', callback_data: 'withdraw_rewards' },
+            { text: 'Delete Validator', callback_data: 'delete_validator' },
+         ],
+      ],
    }
 }
 
@@ -20,24 +34,37 @@ function subscribeKeyBoard() {
    return {
       inline_keyboard: [
          [
-            { text: 'Delegation', callback_data: 'Delegation' },
-            { text: 'Undelegation', callback_data: 'Undelegation' },
+            { text: 'Stake', callback_data: 'delegation' },
+            { text: 'Unstake', callback_data: 'undelegation' },
          ],
-         [{ text: 'Check current', callback_data: 'Check current' }],
+         [{ text: 'Check active subscriptions', callback_data: 'check_active_subscriptions' }],
       ],
    }
 }
 
 function backReply() {
-   return {
-      inline_keyboard: [[{ text: 'Back', callback_data: 'back_button' }]],
-   }
+   return [[{ text: 'Back', callback_data: 'back_button' }]]
+}
+function backReplyForControlValidator() {
+   return [[{ text: 'Back', callback_data: 'back_button_for_val_control' }]]
 }
 
 function unsubscribeCallBackButton(subscriptionsArray) {
-   return subscriptionsArray.map((obj) => {
-      return [{ text: `${obj.type} for ${obj.name}`, callback_data: obj.type }]
+   const callBackObjectButton = subscriptionsArray.map((obj) => {
+      return [{ text: `${obj.text}`, callback_data: `stake_unsubscribe:${obj.name}:${obj.type}` }]
    })
+
+   const backButton = [{ text: 'Back', callback_data: 'back_button' }] //add back button
+   callBackObjectButton.push(backButton)
+
+   return callBackObjectButton
 }
 
-export { getKeyboard, subscribeKeyBoard, backReply, unsubscribeCallBackButton }
+export {
+   getKeyboard,
+   subscribeKeyBoard,
+   backReply,
+   unsubscribeCallBackButton,
+   validatroControlKeyboard,
+   backReplyForControlValidator,
+}
