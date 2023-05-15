@@ -3,6 +3,7 @@ function valInfoKeyboard(validatorData) {
 
    // create buttons array
    const buttonPairs = []
+
    for (let i = 0; i < keys.length; i += 2) {
       const pair = [
          {
