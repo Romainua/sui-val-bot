@@ -5,7 +5,7 @@ import { getStakingPoolIdObjectsByName } from '../api-interaction/validator-cap.
 import ClientDb from '../db-interaction/db-hendlers.js'
 import logger from './handle-logs/logger.js'
 import { createWebSocketConnection, createUnstakeWebSocketConnection } from '../api-interaction/subscribe.js'
-import { unsubscribeCallBackButton, subscribeKeyBoard } from './keyboards/keyboard.js'
+import { unsubscribeCallBackButton, subscribeKeyBoard, callbackButtonForStartCommand } from './keyboards/keyboard.js'
 
 const userSubscriptions = {} //list of all active Subscriptions
 
@@ -239,7 +239,11 @@ async function handleNotifyForUpdateBot(bot) {
             bot.sendMessage(
                chatId,
                `Hello, ${username} bot has been updated. Check latest updates https://github.com/Romainua/sui-val-bot \nI would recommend deploy your own bot (follow the README on repository), then you can use bot safely for: \n- set commission rate for next epoch \n- set gas price for next epoch \n- withdraw rewards from pool or all \n\n*Added new function:*\n - Subscribe to stake events, you will recive message when your validator will get delegation/undelegation.\n\n_You do not need to re-subscribe to events, all subscription have been restored._`,
-               { parse_mode: 'Markdown', disable_web_page_preview: true },
+               {
+                  reply_markup: callbackButtonForStartCommand(),
+                  parse_mode: 'Markdown',
+                  disable_web_page_preview: true,
+               },
             )
             const subscribe_data = dataUser.subscribe_data
             //restore subscribe from db
