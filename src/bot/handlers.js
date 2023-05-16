@@ -16,11 +16,12 @@ import {
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from '../handle-logs/logger.js'
 import {
-   getKeyboard,
    subscribeKeyBoard,
    backReply,
    validatroControlKeyboard,
    backReplyForControlValidator,
+   callbackButtonForStartCommand,
+   backReplyForMainMenu,
 } from './keyboards/keyboard.js'
 
 const waitingForValidatorName = new Map() //map for validator name
@@ -33,19 +34,25 @@ const waitingForPoolID = new Map()
 const waitingValidatorNameForRewards = new Map()
 const waitingForValidatorNameForWsConnection = new Map()
 
-const totalOpenConnection = new Map()
-
 function attachHandlers(bot) {
+   const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/valcontrol', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
+
+   //handling custom messages, input name, key, gas, commission...
    bot.on('message', (msg) => {
       const chatId = msg.chat.id
-      const username = msg.from.username
-
-      totalOpenConnection.set(chatId, username)
-      logger.info(`Total open connections ${totalOpenConnection.size}`)
 
       //show my validator & add validator waiting key
       if (waitingForValidatorKey.get(chatId)) {
-         const { status, msgId } = waitingForValidatorKey.get(chatId) //check status if waiting
+         //close wating if were push one of tg commands
+         if (LIST_OF_COMMANDS.includes(msg.text)) {
+            waitingForValidatorKey.set(chatId, { status: false })
+            logger.info(`Exit from add key input through call commands`)
+            return
+         }
+
+         const { status, msgId } = waitingForValidatorKey.get(chatId)
+
+         //check status if waiting
          if (status) {
             handleSetKey(bot, chatId, msg.text)
                .then((resp) => {
@@ -63,7 +70,7 @@ function attachHandlers(bot) {
                      waitingForValidatorKey.set(chatId, { status: false }) //set status false for waitng
 
                      //edit 'Input val privat key' msg to send val control keyboard after added validator
-                     bot.editMessageText('Validator has been added', {
+                     bot.editMessageText('✅ Validator has been added', {
                         chat_id: chatId,
                         message_id: msgId,
                         reply_markup: validatroControlKeyboard(),
@@ -73,7 +80,7 @@ function attachHandlers(bot) {
                   }
                })
                .catch((err) => {
-                  console.log('Error handling key', err)
+                  logger.error(`Error handling key: ${err}`)
                })
             bot.deleteMessage(chatId, msg.message_id) //delete private key from chat
             return
@@ -82,34 +89,37 @@ function attachHandlers(bot) {
 
       //show custom validator by name waiting
       if (waitingForValidatorName.get(chatId)) {
-         if (msg.text === 'Main menu') {
-            waitingForValidatorName.set(chatId, false)
-            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
-            return
-         }
-
          const validatorName = msg.text
 
-         validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callback button
+         LIST_OF_COMMANDS.includes(msg.text) //close wating if were push one of tg commands
+            ? waitingForValidatorName.set(chatId, false)
+            : handleValidatorInfo(bot, chatId, validatorName)
+                 .then(() => {
+                    validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callback button
+                    logger.info(
+                       `User ${msg.from.username} (${msg.from.id}) called show validator data by ${validatorName}`,
+                    )
 
-         handleValidatorInfo(bot, chatId, validatorName).then((resp) => {
-            logger.info(`User ${msg.from.username} (${msg.from.id}) showed validator data by ${validatorName}`)
-
-            if (resp) {
-               waitingForValidatorName.set(chatId, false)
-            }
-         })
+                    waitingForValidatorName.set(chatId, false)
+                 })
+                 .catch(() => {
+                    bot.sendMessage(chatId, `❗ Can't find validator`, {
+                       reply_markup: backReplyForMainMenu(),
+                    })
+                    logger.info(`User ${msg.from.username} (${msg.from.id}). Can't find validator ${validatorName}`)
+                 })
 
          return
       }
 
       //set gas price waiting
       if (waitingForGasPrice.get(chatId)) {
-         if (msg.text === 'Main menu' || msg.text === '/menu') {
+         //close wating if were push one of tg commands
+         if (LIST_OF_COMMANDS.includes(msg.text)) {
             waitingForGasPrice.set(chatId, false)
-            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             return
          }
+
          const gasPrice = msg.text
 
          if (isNaN(gasPrice) || Number(gasPrice) < 0) {
@@ -126,15 +136,16 @@ function attachHandlers(bot) {
             .then((respTx) => {
                bot.sendMessage(
                   chatId,
-                  `Successfully set gas price.\ntx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
-                  getKeyboard(),
-               )
+                  `✅ Successfully set gas price.\ntx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
+               ).then(() => {
+                  bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+               })
 
                logger.info(`User ${msg.from.username} (${msg.from.id}) successfully set gas price`)
             })
             .catch((err) => {
-               bot.sendMessage(chatId, `${err.message}`, getKeyboard())
-               logger.error(`User ${msg.from.username} (${msg.from.id}) error set gas price`)
+               bot.sendMessage(chatId, `${err.message}`)
+               logger.error(`❗ User ${msg.from.username} (${msg.from.id}) error set gas price`)
             })
 
          // Reset the waiting state
@@ -144,9 +155,9 @@ function attachHandlers(bot) {
 
       //set commssion rate wating
       if (waitingForCommissionRate.get(chatId)) {
-         if (msg.text === 'Main menu' || msg.text === '/menu') {
+         //close wating if were push one of tg commands
+         if (LIST_OF_COMMANDS.includes(msg.text)) {
             waitingForCommissionRate.set(chatId, false)
-            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
             return
          }
 
@@ -168,24 +179,31 @@ function attachHandlers(bot) {
                   if (response.result?.digest) {
                      bot.sendMessage(
                         chatId,
-                        `Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${response.result?.digest}`,
-                        getKeyboard(),
-                     )
+                        `✅ Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${response.result?.digest}`,
+                     ).then(() => {
+                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+                     })
 
                      logger.info(`User ${msg.from.username} (${msg.from.id}) successfully set commission.`)
                   } else {
-                     bot.sendMessage(chatId, `${response}`, getKeyboard())
+                     bot.sendMessage(chatId, `${response}`).then(() => {
+                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+                     })
                   }
                })
                .catch((err) => {
                   if (err.message.includes(`No valid gas coins found for the transaction.`)) {
-                     bot.sendMessage(chatId, `${err} Get some gas coins for pay tx.`, getKeyboard())
+                     bot.sendMessage(chatId, `❗ ${err} Get some gas coins for pay tx.`).then(() => {
+                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+                     })
                   } else {
-                     bot.sendMessage(chatId, `${err}`)
+                     bot.sendMessage(chatId, `❗ ${err}`).then(() => {
+                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+                     })
                   }
                })
          } else {
-            bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
+            bot.sendMessage(chatId, 'Firstly add a validator')
          }
 
          // Reset the waiting state
@@ -195,60 +213,61 @@ function attachHandlers(bot) {
 
       //set staked pool id wating
       if (waitingForPoolID.get(chatId)) {
-         if (msg.text === 'Main menu') {
-            waitingForPoolID.set(chatId, false)
-            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
-            return
-         }
-
          const getValSignerAddress = signerAddrMap.get(chatId)
          const { signerHelper } = getValSignerAddress
          const stakedPoolId = msg.text
 
-         handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId).then(async (resp) => {
-            if (resp.digest) {
-               await bot.sendMessage(chatId, `tx link: https://explorer.sui.io/txblock/${resp.digest}`, getKeyboard())
+         LIST_OF_COMMANDS.includes(msg.text)
+            ? waitingForPoolID.set(chatId, false) //close wating if were push one of tg commands
+            : handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId).then(async (resp) => {
+                 if (resp.digest) {
+                    bot.sendMessage(chatId, `✅ tx link: https://explorer.sui.io/txblock/${resp.digest}`).then(() => {
+                       bot.sendMessage(chatId, 'Choose the button:', {
+                          reply_markup: callbackButtonForStartCommand(),
+                       })
+                    })
 
-               logger.info(`User ${msg.from.username} (${msg.from.id}) successfully withdraw from pool`)
-            } else {
-               bot.sendMessage(chatId, `${resp}`)
-            }
-            waitingForPoolID.set(chatId, false)
-         })
+                    logger.info(`User ${msg.from.username} (${msg.from.id}) successfully withdraw from pool`)
+                 } else {
+                    bot.sendMessage(chatId, `${resp}`).then(() => {
+                       bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+                    })
+                    logger.warn(`User ${msg.from.username} (${msg.from.id}) didn't withdraw from pool`)
+                 }
+                 waitingForPoolID.set(chatId, false)
+              })
 
          return
       }
 
       //set waiting validator name for check rewards
       if (waitingValidatorNameForRewards.get(chatId)) {
-         if (msg.text === 'Main menu' || msg.text === '/menu') {
-            waitingValidatorNameForRewards.set(chatId, false)
-
-            bot.sendMessage(chatId, 'Choose a button', getKeyboard())
-
-            return
-         }
-
          const valName = msg.text
 
-         showCurrentState(valName)
-            .then(async (resp) => {
-               const validatorAddress = resp.suiAddress
+         LIST_OF_COMMANDS.includes(msg.text)
+            ? waitingValidatorNameForRewards.set(chatId, false) //close wating if were push one of tg commands
+            : showCurrentState(valName)
+                 .then(async (resp) => {
+                    const validatorAddress = resp.suiAddress
 
-               bot.sendMessage(chatId, 'Sent request. Wait a moment')
+                    bot.sendMessage(chatId, 'Sent request. Wait a moment')
 
-               const listofStakedObjects = await handleStakedSuiObjectsByName(validatorAddress)
+                    const listofStakedObjects = await handleStakedSuiObjectsByName(validatorAddress)
 
-               bot.sendMessage(chatId, `${resp.name} reward pools:\n${listofStakedObjects}`, getKeyboard())
+                    await bot.sendMessage(chatId, `${resp.name} reward pools:\n${listofStakedObjects}`)
+                    bot.sendMessage(chatId, 'Choose the button:', {
+                       reply_markup: callbackButtonForStartCommand(),
+                    })
 
-               waitingValidatorNameForRewards.set(chatId, false)
+                    waitingValidatorNameForRewards.set(chatId, false)
 
-               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
-            })
+                    logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
+                 })
 
-            .catch(() => {
-               bot.sendMessage(chatId, "Can't find validator")
-            })
+                 .catch(() => {
+                    bot.sendMessage(chatId, "❗ Can't find validator", { reply_markup: backReplyForMainMenu() })
+                    logger.warn(`User ${msg.from.username} (${msg.from.id}) can't find validator ${valName}`)
+                 })
          return
       }
 
@@ -258,99 +277,91 @@ function attachHandlers(bot) {
          const { status, type, msgId } = waitingForValidatorNameForWsConnection.get(chatId) //status for check waiting, type for check type of stake it depend which function will call msgId for delete message on called function
 
          if (status) {
-            showCurrentState(validatorName)
-               .then((data) => {
-                  const valAddress = data.suiAddress
+            LIST_OF_COMMANDS.includes(msg.text)
+               ? //close wating if were push one of tg commands
+                 waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+               : showCurrentState(validatorName)
+                    .then((data) => {
+                       const valAddress = data.suiAddress
 
-                  if (type == 'delegate') {
-                     handleStakeWsSubscribe(bot, chatId, valAddress, validatorName, msgId)
-                     waitingForValidatorNameForWsConnection.set(chatId, { status: false })
-                  }
-                  if (type == 'undelegate') {
-                     handleUnstakeWsSubscribe(bot, chatId, valAddress, validatorName, msgId)
-                     waitingForValidatorNameForWsConnection.set(chatId, { status: false })
-                  }
-               })
-               .catch(() => {
-                  bot.sendMessage(chatId, "Can't find validator.", { reply_markup: { inline_keyboard: backReply() } })
-               })
+                       if (type == 'delegate') {
+                          handleStakeWsSubscribe(bot, chatId, valAddress, validatorName, msgId)
+                          waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+
+                          logger.info(
+                             `User ${msg.from.username} (${msg.from.id}) Subscribed to Stake for ${validatorName}`,
+                          )
+                       } else if (type == 'undelegate') {
+                          handleUnstakeWsSubscribe(bot, chatId, valAddress, validatorName, msgId)
+                          waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+
+                          logger.info(
+                             `User ${msg.from.username} (${msg.from.id}) Subscribed to Untake for ${validatorName}`,
+                          )
+                       }
+                    })
+                    .catch(() => {
+                       bot.sendMessage(chatId, "❗ Can't find validator.", {
+                          reply_markup: { inline_keyboard: backReply() },
+                       })
+                       logger.warn(
+                          `User ${msg.from.username} (${msg.from.id}) Can't find validator for ${validatorName}`,
+                       )
+                    })
             return
          }
       }
-
-      switch (msg.text) {
-         case 'Validator Control':
-            bot.sendMessage(chatId, 'Validator control menu. Firstly Add Validator.', {
-               reply_markup: validatroControlKeyboard(),
-            })
-            break
-
-         case 'Show Gas Price':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show Gas Price`)
-
-            handleGetPrice(bot, chatId)
-            break
-
-         case 'Show Validator Info By Validator Name':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show Another Validator`)
-
-            bot.sendMessage(chatId, 'Input validator name:', {
-               reply_markup: {
-                  keyboard: [[{ text: 'Main menu' }]],
-                  resize_keyboard: true,
-                  one_time_keyboard: true,
-               },
-            })
-            waitingForValidatorName.set(chatId, true)
-            break
-
-         case 'Show Rewards By Validator Name':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show Rewards By Validator Name`)
-
-            bot.sendMessage(chatId, 'Input validator name:', {
-               reply_markup: {
-                  keyboard: [[{ text: 'Main menu' }]],
-                  resize_keyboard: true,
-                  one_time_keyboard: true,
-               },
-            })
-
-            waitingValidatorNameForRewards.set(chatId, true)
-
-            break
-
-         case 'Main menu':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used Main menu`)
-
-            bot.sendMessage(chatId, 'Mainnet network. Choose a button', getKeyboard())
-            break
-
-         case 'Set Stake Notifications':
-            bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
-               reply_markup: subscribeKeyBoard(),
-            })
-            break
-
-         case '/menu':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used /menu`)
-
-            bot.sendMessage(chatId, 'Mainnet network. Choose a button', getKeyboard())
-            break
-
-         default:
-            logger.info(`User ${msg.from.username} (${msg.from.id}) called default`)
-
-            bot.sendMessage(
-               chatId,
-               "Hello, I'm your manager of your validator. Choose a button to get infromation about validator or add own validator. Mainnet network.",
-               getKeyboard(),
-            )
-      }
    })
 
+   bot.onText(new RegExp('/start'), (msg) => {
+      const chatId = msg.chat.id
+      bot.sendMessage(
+         chatId,
+         "Welcome! I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
+         { reply_markup: callbackButtonForStartCommand() },
+      )
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
+   })
+
+   bot.onText(new RegExp('/valinfo'), (msg) => {
+      const chatId = msg.chat.id
+      bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForMainMenu() })
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /valinfo command`)
+   })
+
+   bot.onText(new RegExp('/stakenotify'), (msg) => {
+      const chatId = msg.chat.id
+      bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
+         reply_markup: subscribeKeyBoard(),
+      })
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /stakenotify command`)
+   })
+
+   bot.onText(new RegExp('/rewards'), (msg) => {
+      const chatId = msg.chat.id
+      bot.sendMessage(chatId, 'Input validator name', { reply_markup: backReplyForMainMenu() }).then(() => {
+         waitingValidatorNameForRewards.set(chatId, true)
+      })
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /rewards command`)
+   })
+
+   bot.onText(new RegExp('/gasprice'), (msg) => {
+      const chatId = msg.chat.id
+      handleGetPrice(bot, chatId)
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /gasprice command`)
+   })
+
+   bot.onText(new RegExp('/valcontrol'), (msg) => {
+      const chatId = msg.chat.id
+      bot.sendMessage(chatId, '🕹 Validator control menu. Firstly Add Validator.', {
+         reply_markup: validatroControlKeyboard(),
+      })
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /valcontrol command`)
+   })
    //callback query
    bot.on('callback_query', async (callbackQuery) => {
       const chatId = callbackQuery.message.chat.id
+      const msgId = callbackQuery.message.message_id
       const callBackData = callbackQuery.data
       const msg = callbackQuery.message
 
@@ -366,9 +377,87 @@ function attachHandlers(bot) {
       }
 
       switch (action) {
-         case 'add_validator':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Add Validator`)
+         case 'set_stake_notify':
+            bot.editMessageText('Subscribe to stake/unstake events. Choose event.', {
+               chat_id: chatId,
+               message_id: msgId,
+               reply_markup: subscribeKeyBoard(),
+            }).then(() => bot.answerCallbackQuery(callbackQuery.id))
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called set_stake_notify (subscribe to stale/unstake) callback`,
+            )
 
+            break
+
+         case 'show_val_info':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_val_info (Validator Info by Name) callback`,
+            )
+
+            bot.sendMessage(chatId, 'Input validator name:', {
+               reply_markup: backReplyForMainMenu(),
+            }).then(() => {
+               bot.deleteMessage(chatId, msgId)
+               bot.answerCallbackQuery(callbackQuery.id)
+               waitingForValidatorName.set(chatId, true)
+            })
+
+            break
+
+         case 'show_rewards':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_rewards (Show Rewards By Validator Name) callback`,
+            )
+
+            bot.sendMessage(chatId, 'Input validator name:', {
+               reply_markup: backReplyForMainMenu(),
+            }).then(() => {
+               bot.deleteMessage(chatId, msgId)
+               bot.answerCallbackQuery(callbackQuery.id)
+               waitingValidatorNameForRewards.set(chatId, true)
+            })
+
+            break
+
+         case 'show_gas_price':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_gas_price (Show Gas Price) callback`,
+            )
+
+            handleGetPrice(bot, chatId).then(async () => {
+               await bot.answerCallbackQuery(callbackQuery.id)
+               bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+            })
+            break
+
+         case 'val_control':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used val_control (Validator Control) callback`,
+            )
+
+            bot.editMessageText('🕹 Validator control menu. Firstly Add Validator.', {
+               chat_id: chatId,
+               message_id: msgId,
+               reply_markup: validatroControlKeyboard(),
+            }).then(() => {
+               bot.answerCallbackQuery(callbackQuery.id)
+            })
+
+            break
+
+         case 'add_validator':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used  add_validator (Add Validator) сallback`,
+            )
+
+            if (signerAddrMap.size > 0) {
+               bot.deleteMessage(chatId, msgId).then(() => {
+                  bot.sendMessage(chatId, '❗ Validator have been added.', {
+                     reply_markup: callbackButtonForStartCommand(),
+                  })
+               })
+               return
+            }
             bot.deleteMessage(chatId, msg.message_id).then(() => {
                bot.sendMessage(chatId, 'Please input the privat key:', {
                   reply_markup: { inline_keyboard: backReplyForControlValidator() },
@@ -380,131 +469,166 @@ function attachHandlers(bot) {
             break
 
          case 'show_my_validator':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Show My Validator`)
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_my_validator (Show My Validator) callback`,
+            )
 
             if (signerAddrMap.has(chatId)) {
                validatorNames.clear() //clear current validator for get data
 
                const valData = signerAddrMap.get(chatId)
-               const { objectOperationCap } = valData
+               const { address } = valData
 
-               handleValidatorInfo(bot, chatId, objectOperationCap)
+               handleValidatorInfo(bot, chatId, address).then(() => {
+                  validatorNames.set(chatId, address)
+                  bot.answerCallbackQuery(callbackQuery.id)
+               })
             } else {
-               bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
-               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
+               bot.sendMessage(chatId, 'Firstly Add Validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
+               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
             }
 
             break
 
          case 'set_gas_price':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Set Gas`)
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used set_gas_price (Set Gas) callback`,
+            )
 
             if (signerAddrMap.has(chatId)) {
-               bot.sendMessage(chatId, 'Enter gas price for next epoch or /menu to return:', {
-                  reply_markup: {
-                     keyboard: [[{ text: 'Main menu' }]],
-                     resize_keyboard: true,
-                     one_time_keyboard: true,
-                  },
+               bot.sendMessage(chatId, 'Enter gas price for next epoch:', {
+                  reply_markup: { inline_keyboard: backReplyForControlValidator() },
+               }).then(async () => {
+                  await bot.answerCallbackQuery(callbackQuery.id)
+                  bot.deleteMessage(chatId, msgId)
                })
+
                waitingForGasPrice.set(chatId, true)
             } else {
-               bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
-               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
+               bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
+               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
             }
             break
 
          case 'set_commission_rate':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Set Commission Rate`)
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used set_commission_rate (Set Commission Rate) callback`,
+            )
 
             if (signerAddrMap.has(chatId)) {
-               bot.sendMessage(chatId, 'Input commision rate for next epoch or /menu to return:', {
-                  reply_markup: {
-                     keyboard: [[{ text: 'Main menu' }]],
-                     resize_keyboard: true,
-                     one_time_keyboard: true,
-                  },
+               bot.sendMessage(chatId, 'Input commision rate for next epoch:', {
+                  reply_markup: { inline_keyboard: backReplyForControlValidator() },
+               }).then(async () => {
+                  bot.answerCallbackQuery(callbackQuery.id)
+                  bot.deleteMessage(chatId, msgId)
                })
+
                waitingForCommissionRate.set(chatId, true)
             } else {
-               bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
-               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
+               bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
+               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
             }
             break
 
          case 'withdraw_rewards':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Withdraw Rewards`)
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used withdraw_rewards (Withdraw Rewards) callback`,
+            )
 
             if (signerAddrMap.has(chatId)) {
                const validatorSignerAddress = signerAddrMap.get(chatId)
                const { signerHelper, objectOperationCap } = validatorSignerAddress
-               handleStakedSuiObjects(bot, chatId, objectOperationCap, signerHelper)
+               handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperationCap, signerHelper)
             } else {
-               bot.sendMessage(chatId, 'Firstly add a validator', getKeyboard())
-               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
+               bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
+               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
             }
             break
 
          case 'delete_validator':
-            logger.info(`User ${msg.from.username} (${msg.from.id}) used function Delete Validator`)
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delete_validator (Delete Validator) callback`,
+            )
 
             if (signerAddrMap.has(chatId)) {
                signerAddrMap.clear()
-               bot.sendMessage(chatId, 'Deleted')
+               bot.sendMessage(chatId, '✅ Deleted', {
+                  reply_markup: callbackButtonForStartCommand(),
+               }).then(() => bot.answerCallbackQuery(callbackQuery.id))
             } else {
-               bot.sendMessage(chatId, 'Validator not added')
-               logger.warn(`User ${msg.from.username} (${msg.from.id}) firstly add a validator`)
+               bot.sendMessage(chatId, '⛔ Validator not added').then(() => bot.answerCallbackQuery(callbackQuery.id))
+               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
             }
             break
 
+         //stake subscription
          case 'delegation':
-            bot.deleteMessage(chatId, msg.message_id).then(() => {
-               bot.sendMessage(chatId, 'Input validator name:', {
-                  reply_markup: { inline_keyboard: backReply() },
-               }).then((message) => {
-                  waitingForValidatorNameForWsConnection.set(chatId, {
-                     status: true,
-                     type: 'delegate',
-                     msgId: message.message_id, //add id of message for delete it
-                  })
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Notify) callback`,
+            )
+
+            bot.deleteMessage(chatId, msgId)
+            bot.sendMessage(chatId, 'Input validator name:', {
+               reply_markup: { inline_keyboard: backReply() },
+            }).then((message) => {
+               waitingForValidatorNameForWsConnection.set(chatId, {
+                  status: true,
+                  type: 'delegate',
+                  msgId: message.message_id, //add id of message for delete it
                })
+               bot.answerCallbackQuery(callbackQuery.id)
             })
 
             break
 
+         //unstake subscription
          case 'undelegation':
-            bot.deleteMessage(chatId, msg.message_id).then(() => {
-               bot.sendMessage(chatId, 'Input validator name:', {
-                  reply_markup: { inline_keyboard: backReply() },
-               }).then((message) => {
-                  waitingForValidatorNameForWsConnection.set(chatId, {
-                     status: true,
-                     type: 'undelegate',
-                     msgId: message.message_id, //add id of message for delete it
-                  })
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used undelegation (Subscribe to Unstake Notify) callback`,
+            )
+
+            bot.deleteMessage(chatId, msgId)
+            bot.sendMessage(chatId, 'Input validator name:', {
+               reply_markup: { inline_keyboard: backReply() },
+            }).then((message) => {
+               waitingForValidatorNameForWsConnection.set(chatId, {
+                  status: true,
+                  type: 'undelegate',
+                  msgId: message.message_id, //add id of message for delete it
                })
+               bot.answerCallbackQuery(callbackQuery.id)
             })
 
             break
 
          case 'check_active_subscriptions':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used check_active_subscriptions (Check list of subscribes) callback`,
+            )
             handleTotalSubscriptions(bot, chatId, msg)
+            bot.answerCallbackQuery(callbackQuery.id)
             break
 
+         //delete active subscriptions
          case 'stake_unsubscribe':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used stake_unsubscribe (Unsubsctibe From Active Subscriptions) callback`,
+            )
+
             const valNameForUnsubscribe = callbackQuery.data.split(':')[1] //get second value of split it should be val name
             const typeOfSubscription = callbackQuery.data.split(':')[2] //get third value of split it should be type of subscription
 
             handleUnsubscribeFromStakeEvents(chatId, valNameForUnsubscribe, typeOfSubscription)
                .then(() => {
-                  bot.editMessageText('Done!', {
+                  bot.editMessageText('✅ Done!', {
                      chat_id: chatId,
                      message_id: msg.message_id,
                      reply_markup: subscribeKeyBoard(),
                   })
+                  bot.answerCallbackQuery(callbackQuery.id)
                })
                .catch(() => {
-                  bot.editMessageText("Can't find subscription.", {
+                  bot.editMessageText("⛔ Can't find subscription. ", {
                      chat_id: chatId,
                      message_id: msg.message_id,
                      reply_markup: subscribeKeyBoard(),
@@ -514,29 +638,40 @@ function attachHandlers(bot) {
             break
 
          case 'back_button':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used back_button (Back Button for Subscribe) callback`,
+            )
             waitingForValidatorNameForWsConnection.set(chatId, { status: false })
 
-            bot.editMessageText('Subscribe to stakes events. Choose event.', {
+            bot.editMessageText('Subscribe to stake events. Choose event.', {
                chat_id: chatId,
                message_id: msg.message_id,
                reply_markup: subscribeKeyBoard(),
+            }).then(() => {
+               bot.answerCallbackQuery(callbackQuery.id)
             })
 
             break
 
          case 'back_button_for_val_control':
-            waitingForValidatorKey.set(chatId, { status: false })
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used back_button_for_val_control (Back Button for Validator Control) callback`,
+            )
+            const listOfWaiting = [waitingForGasPrice, waitingForCommissionRate, waitingForPoolID]
+            listOfWaiting.forEach((map) => {
+               map.clear()
+            })
 
-            bot.editMessageText('Validator control menu. Firstly Add Validator.', {
+            bot.editMessageText('🕹 Validator control menu. Firstly Add Validator.', {
                chat_id: chatId,
                message_id: msg.message_id,
                reply_markup: validatroControlKeyboard(),
-            })
+            }).then(() => bot.answerCallbackQuery(callbackQuery.id))
             break
 
          case 'withdraw_all':
             logger.info(
-               `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback withdraw_all`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called withdraw_all (Withdraw All Rewards) callback`,
             )
 
             bot.editMessageReplyMarkup(
@@ -567,7 +702,7 @@ function attachHandlers(bot) {
 
          case 'withdraw_pool':
             logger.info(
-               `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback withdraw_pool`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called withdraw_pool (Withdraw From Pool) callback`,
             )
 
             bot.editMessageReplyMarkup(
@@ -582,136 +717,65 @@ function attachHandlers(bot) {
             waitingForPoolID.set(chatId, true)
 
             await bot.sendMessage(chatId, 'Input Pool ID or /menu to return :', {
-               reply_markup: {
-                  keyboard: [[{ text: 'Main menu' }]],
-                  resize_keyboard: true,
-                  one_time_keyboard: true,
-               },
+               reply_markup: { inline_keyboard: backReplyForControlValidator() },
             })
+            bot.deleteMessage(chatId, msgId)
             bot.answerCallbackQuery(callbackQuery.id)
             break
 
-         case 'valInfo':
+         case 'valInfo': //case when callback button has valInfo type
             const key = callbackData.key
 
-            const valData = signerAddrMap.get(chatId)
-            const { objectOperationCap } = valData
+            //show info for added and custom validator by name
+            if (validatorNames.get(chatId)) {
+               const validatorName = validatorNames.get(chatId)
+               logger.info(
+                  `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called valInfo (Validator Data) callback for ${validatorName}`,
+               )
 
-            handleValidatorInfo(bot, chatId, objectOperationCap).then((valData) => {
-               const value = valData[key]
-               bot.sendMessage(chatId, `The value for ${key} is: ${value}`)
-            })
+               showCurrentState(validatorName).then((valData) => {
+                  const value = valData[key] //set key for show
+                  bot.sendMessage(chatId, `The value for ${key} is: ${value}`).then(() =>
+                     bot.answerCallbackQuery(callbackQuery.id),
+                  )
+               })
+            } else {
+               bot.answerCallbackQuery(callbackQuery.id, "Didn't find data")
+            }
+
             break
+
+         case 'main_menu':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Meny) callback`,
+            )
+            const listOfWaitingMaps = [
+               waitingForValidatorName,
+               waitingForValidatorKey,
+               waitingForGasPrice,
+               waitingForCommissionRate,
+               waitingForPoolID,
+               waitingValidatorNameForRewards,
+               waitingForValidatorNameForWsConnection,
+            ]
+            listOfWaitingMaps.forEach((map) => {
+               map.clear()
+            })
+
+            bot.editMessageText('Choose the button:', {
+               chat_id: chatId,
+               message_id: msgId,
+               reply_markup: callbackButtonForStartCommand(),
+            }).then(() => {
+               bot.answerCallbackQuery(callbackQuery.id)
+            })
+
+            break
+
          default:
-            bot.sendMessage(chatId, `Unknown command:`)
+            bot.sendMessage(chatId, `Unknown command`)
             break
       }
-
-      //callback for solve withdraw rewards
-      // if (callBackData === 'withdraw_all') {
-      //    logger.info(
-      //       `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback withdraw_all`,
-      //    )
-
-      //    bot.editMessageReplyMarkup(
-      //       { inline_keyboard: [] },
-      //       {
-      //          chat_id: chatId,
-      //          message_id: callbackQuery.message.message_id,
-      //       },
-      //    ).catch((error) => {
-      //       console.error('Error updating keyboard:', error)
-      //    })
-
-      //    bot.sendMessage(chatId, 'Sent request. Withdrawing all rewards...')
-
-      //    const validatorSignerAddress = signerAddrMap.get(chatId)
-
-      //    const { signerHelper } = validatorSignerAddress
-      //    const result = await handleWithdrawAllRewards(signerHelper)
-
-      //    if (result) {
-      //       bot.sendMessage(chatId, `${result}`)
-      //       bot.answerCallbackQuery(callbackQuery.id) //answer to callback request, close download notice
-      //    } else {
-      //       console.log(result)
-      //    }
-
-      //    return
-      // } else if (callBackData === 'withdraw_pool') {
-      //    logger.info(
-      //       `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback withdraw_pool`,
-      //    )
-
-      //    bot.editMessageReplyMarkup(
-      //       { inline_keyboard: [] },
-      //       {
-      //          chat_id: chatId,
-      //          message_id: callbackQuery.message.message_id,
-      //       },
-      //    ).catch((error) => {
-      //       console.error('Error updating keyboard:', error)
-      //    })
-      //    waitingForPoolID.set(chatId, true)
-
-      //    await bot.sendMessage(chatId, 'Input Pool ID or /menu to return :', {
-      //       reply_markup: {
-      //          keyboard: [[{ text: 'Main menu' }]],
-      //          resize_keyboard: true,
-      //          one_time_keyboard: true,
-      //       },
-      //    })
-      //    bot.answerCallbackQuery(callbackQuery.id)
-
-      //    return
-      // }
-
-      // const validatorName = validatorNames.get(chatId)
-      // const validatorAdr = signerAddrMap.get(chatId) //use for get address of validator. Just use same func(show validator info) for custom name and address
-
-      // if (validatorName) {
-      //    const jsonKey = JSON.parse(action)
-
-      //    logger.info(
-      //       `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback with key: ${jsonKey.key} for ${validatorName}`,
-      //    )
-
-      //    //show by name
-      //    const validatorData = await showCurrentState(validatorName)
-
-      //    if (validatorData && validatorData.hasOwnProperty(jsonKey.key)) {
-      //       const value = validatorData[jsonKey.key]
-
-      //       bot.sendMessage(chatId, `${jsonKey.key}: ${value}`, getKeyboard())
-      //    } else {
-      //       bot.answerCallbackQuery(callbackQuery.id, {
-      //          text: 'Error: Validator data not found.',
-      //       })
-      //    }
-      // } else if (validatorAdr) {
-      //    //when validator added it use for Show My Validator by address
-      //    const jsonKey = JSON.parse(action)
-
-      //    //show by address
-      //    const address = validatorAdr.objectOperationCap
-
-      //    const validatorData = await showCurrentState(address)
-
-      //    if (validatorData && validatorData.hasOwnProperty(jsonKey.key)) {
-      //       const value = validatorData[jsonKey.key]
-
-      //       bot.sendMessage(chatId, `${jsonKey.key}: ${value}`, getKeyboard())
-
-      //       logger.info(
-      //          `User ${callbackQuery.message.chat.username} (${callbackQuery.message.chat.id}) called callback with key: ${jsonKey.key} for ${validatorData.name}`,
-      //       )
-      //    } else {
-      //       bot.answerCallbackQuery(callbackQuery.id, {
-      //          text: 'Error: Validator data not found.',
-      //       })
-      //    }
-      // }
-      // bot.answerCallbackQuery(callbackQuery.id)
    })
 }
 

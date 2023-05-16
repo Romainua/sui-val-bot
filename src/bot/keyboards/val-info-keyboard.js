@@ -3,7 +3,6 @@ function valInfoKeyboard(validatorData) {
 
    // create buttons array
    const buttonPairs = []
-
    for (let i = 0; i < keys.length; i += 2) {
       const pair = [
          {
@@ -19,6 +18,7 @@ function valInfoKeyboard(validatorData) {
       }
       buttonPairs.push(pair)
    }
+   buttonPairs.push([{ text: '⬅ Back', callback_data: 'main_menu' }]) //add back button
 
    const keyboard = {
       inline_keyboard: buttonPairs,
@@ -28,8 +28,11 @@ function valInfoKeyboard(validatorData) {
 
 const valWithdrawKeyboard = () => {
    const buttons = [
-      [{ text: 'Withdraw All', callback_data: 'withdraw_all' }],
-      [{ text: 'Withdraw from Pool', callback_data: 'withdraw_pool' }],
+      [
+         { text: 'Withdraw All', callback_data: 'withdraw_all' },
+         { text: 'Withdraw from Pool', callback_data: 'withdraw_pool' },
+      ],
+      [{ text: '⬅ Back', callback_data: 'back_button_for_val_control' }],
    ]
 
    return { inline_keyboard: buttons }
