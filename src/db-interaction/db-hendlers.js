@@ -34,7 +34,7 @@ class ClientDb extends Client {
 
    async createTableIfNotExists() {
       const queryText = `
-      CREATE TABLE IF NOT EXISTS test_user_data (
+      CREATE TABLE IF NOT EXISTS user_data (
         id SERIAL PRIMARY KEY,
         data JSONB,
         subscribe_data JSONB DEFAULT '[]'
@@ -47,7 +47,7 @@ class ClientDb extends Client {
 
    async insertData(id, value) {
       const queryText = `
-      INSERT INTO test_user_data (id, data)
+      INSERT INTO user_data (id, data)
       VALUES ($1, $2)
       ON CONFLICT (id) DO UPDATE SET data = $2;
     `
@@ -57,7 +57,7 @@ class ClientDb extends Client {
    }
 
    async insertSubscribeData(userId, value) {
-      const res = await this.query('SELECT subscribe_data FROM test_user_data WHERE id = $1', [userId])
+      const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
       const currentSubscriptions = res.rows[0]?.subscribe_data || []
       const existingSubscription = currentSubscriptions.find(
          (subscription) => JSON.stringify(subscription) === JSON.stringify(value),
@@ -67,7 +67,7 @@ class ClientDb extends Client {
          const updatedSubscriptions = [...currentSubscriptions, value]
 
          const query = `
-           UPDATE test_user_data 
+           UPDATE user_data 
            SET subscribe_data = $2
            WHERE id = $1;
          `
@@ -76,7 +76,7 @@ class ClientDb extends Client {
    }
 
    async deleteSubscribeData(userId, valueToDelete) {
-      const res = await this.query('SELECT subscribe_data FROM test_user_data WHERE id = $1', [userId])
+      const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
       const currentSubscriptions = res.rows[0]?.subscribe_data || []
 
       const updatedSubscriptions = currentSubscriptions.filter(
@@ -84,7 +84,7 @@ class ClientDb extends Client {
       )
 
       const query = `
-        UPDATE test_user_data 
+        UPDATE user_data 
         SET subscribe_data = $2
         WHERE id = $1;
     `
@@ -94,7 +94,7 @@ class ClientDb extends Client {
 
    async getAllData() {
       try {
-         const result = await this.query('SELECT * FROM test_user_data')
+         const result = await this.query('SELECT * FROM user_data')
          return result.rows
       } catch (err) {
          logger.error(`Error executing query ${err.stack}`)
