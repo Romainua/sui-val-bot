@@ -283,8 +283,7 @@ function attachHandlers(bot) {
 
          if (status) {
             LIST_OF_COMMANDS.includes(msg.text)
-               ? //close wating if were push one of tg commands
-                 waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+               ? waitingForValidatorNameForWsConnection.set(chatId, { status: false }) //close wating if were push one of tg commands
                : showCurrentState(validatorName)
                     .then((data) => {
                        const valAddress = data.suiAddress
@@ -325,6 +324,7 @@ function attachHandlers(bot) {
          "Welcome! I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
          { reply_markup: callbackButtonForStartCommand() },
       )
+      handleStartCommand(chatId, msg)
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
    })
 
@@ -752,7 +752,7 @@ function attachHandlers(bot) {
 
          case 'main_menu':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Meny) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Menu) callback`,
             )
             const listOfWaitingMaps = [
                waitingForValidatorName,

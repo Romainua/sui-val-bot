@@ -24,6 +24,7 @@ not cap operations:
 -  withdraw rewards (from one pool or all)
 -  show validator rewards by name
 -  save user data and chat id to db
+-  subscribe to stake/unstake events
 
 You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
 

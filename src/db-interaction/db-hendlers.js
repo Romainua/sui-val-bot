@@ -34,9 +34,10 @@ class ClientDb extends Client {
 
    async createTableIfNotExists() {
       const queryText = `
-      CREATE TABLE IF NOT EXISTS user_data (
+      CREATE TABLE IF NOT EXISTS test_user_data (
         id SERIAL PRIMARY KEY,
-        data JSONB
+        data JSONB,
+        subscribe_data JSONB DEFAULT '[]'
       );
     `
       await this.query(queryText)
@@ -46,7 +47,7 @@ class ClientDb extends Client {
 
    async insertData(id, value) {
       const queryText = `
-      INSERT INTO user_data (id, data)
+      INSERT INTO test_user_data (id, data)
       VALUES ($1, $2)
       ON CONFLICT (id) DO UPDATE SET data = $2;
     `
@@ -55,10 +56,45 @@ class ClientDb extends Client {
       logger.info('Data inserted or updated')
    }
 
+   async insertSubscribeData(userId, value) {
+      const res = await this.query('SELECT subscribe_data FROM test_user_data WHERE id = $1', [userId])
+      const currentSubscriptions = res.rows[0]?.subscribe_data || []
+      const existingSubscription = currentSubscriptions.find(
+         (subscription) => JSON.stringify(subscription) === JSON.stringify(value),
+      )
+
+      if (!existingSubscription) {
+         const updatedSubscriptions = [...currentSubscriptions, value]
+
+         const query = `
+           UPDATE test_user_data 
+           SET subscribe_data = $2
+           WHERE id = $1;
+         `
+         await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+      }
+   }
+
+   async deleteSubscribeData(userId, valueToDelete) {
+      const res = await this.query('SELECT subscribe_data FROM test_user_data WHERE id = $1', [userId])
+      const currentSubscriptions = res.rows[0]?.subscribe_data || []
+
+      const updatedSubscriptions = currentSubscriptions.filter(
+         (subscription) => JSON.stringify(subscription) !== JSON.stringify(valueToDelete),
+      )
+
+      const query = `
+        UPDATE test_user_data 
+        SET subscribe_data = $2
+        WHERE id = $1;
+    `
+
+      await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+   }
+
    async getAllData() {
       try {
-         const result = await this.query('SELECT * FROM user_data')
-
+         const result = await this.query('SELECT * FROM test_user_data')
          return result.rows
       } catch (err) {
          logger.error(`Error executing query ${err.stack}`)
@@ -69,5 +105,3 @@ class ClientDb extends Client {
 }
 
 export default ClientDb
-//CREATE TABLE table_name (column1 datatype1, column2 datatype2, ...);
-//SELECT * FROM table_name;

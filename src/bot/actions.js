@@ -220,6 +220,7 @@ async function handleStartCommand(chatId, msg) {
    }
 }
 
+//notify when bot has been updated
 async function handleNotifyForUpdateBot(bot) {
    const dataBaseClient = new ClientDb()
 
@@ -237,8 +238,21 @@ async function handleNotifyForUpdateBot(bot) {
 
             bot.sendMessage(
                chatId,
-               `Hello, ${username} bot was updated. Check latest updates https://github.com/Romainua/sui-val-bot \nI would recommend deploy your own bot (follow the README on repository), then you can use bot safely for: \n- set commission rate for next epoch \n- set gas price for next epoch \n- withdraw rewards from pool or all \n`,
+               `Hello, ${username} bot has been updated. Check latest updates https://github.com/Romainua/sui-val-bot \nI would recommend deploy your own bot (follow the README on repository), then you can use bot safely for: \n- set commission rate for next epoch \n- set gas price for next epoch \n- withdraw rewards from pool or all \n\n*Added new function:*\n - Subscribe to stake events, you will recive message when your validator will get delegation/undelegation.\n\n_You do not need to re-subscribe to events, all subscription have been restored._`,
+               { parse_mode: 'Markdown', disable_web_page_preview: true },
             )
+            const subscribe_data = dataUser.subscribe_data
+
+            subscribe_data.length > 0
+               ? subscribe_data.forEach((subsctibe) => {
+                    const valAddress = subsctibe.address
+                    const valName = subsctibe.name
+                    const type = subsctibe.type
+                    type == 'delegate'
+                       ? handleStakeWsSubscribe(bot, chatId, valAddress, valName)
+                       : handleUnstakeWsSubscribe(bot, chatId, valAddress, valName)
+                 })
+               : {}
          }
       })
       .catch((err) => {
@@ -267,7 +281,7 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
                params: {
                   result: {
                      id: { txDigest },
-                     parsedJson: { amount, validator_address },
+                     parsedJson: { amount },
                   },
                },
             } = parsedData //dustructuring to obtain the desired properties
@@ -280,20 +294,23 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
                `➕ Added stake to ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
             )
          } else {
-            await bot.deleteMessage(chatId, msgId)
+            msgId ? await bot.deleteMessage(chatId, msgId) : {}
             bot.sendMessage(chatId, `Subscribed to Stake for ${valName}`, {
                reply_markup: subscribeKeyBoard(),
             })
 
             //create object with subscribe data for future unsubscribe and show infor
             Object.assign(subscribeData, {
-               id: parsedData.result,
                name: valName,
                type: 'delegate',
                text: `Unsubscribe Stake event for ${valName}`,
+               address: validatorIdenty,
             })
 
-            userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
+            await userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
+
+            //save data to db
+            handleSaveSubscribesToDB(chatId, valName, subscribeData.type, validatorIdenty)
          }
       }).then((ws) => {
          subscribeData.ws = ws
@@ -326,7 +343,7 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
                params: {
                   result: {
                      id: { txDigest },
-                     parsedJson: { principal_amount, validator_address },
+                     parsedJson: { principal_amount },
                   },
                },
             } = parsedData //dustructuring to obtain the desired properties
@@ -339,20 +356,23 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
                `➖ Unstaked ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
             )
          } else {
-            await bot.deleteMessage(chatId, msgId)
+            msgId ? await bot.deleteMessage(chatId, msgId) : {}
             bot.sendMessage(chatId, `Subscribed to Unstake for ${valName}`, {
                reply_markup: subscribeKeyBoard(),
             })
 
             //create object with subscribe data for future unsubscribe and show infor
             Object.assign(subscribeData, {
-               id: parsedData.result,
                name: valName,
                type: 'undelegate',
                text: `Unsubscribe Unstake event for ${valName}`,
+               address: validatorIdenty,
             })
 
             userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
+
+            //save data to db
+            handleSaveSubscribesToDB(chatId, valName, subscribeData.type, validatorIdenty)
          }
       }).then((ws) => {
          subscribeData.ws = ws //add ws connection to obj for future close
@@ -361,6 +381,52 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
       bot.sendMessage(chatId, `❌ You have already subscribed to this event for ${valName}`, {
          reply_markup: subscribeKeyBoard(),
       })
+   }
+}
+
+//handling save subscriptions to db
+async function handleSaveSubscribesToDB(chatId, validatorName, type, address) {
+   try {
+      const dataBaseClient = new ClientDb()
+
+      await dataBaseClient.connect()
+
+      const subscribeValue = {
+         name: validatorName,
+         type: type,
+         address: address,
+      }
+
+      await dataBaseClient.insertSubscribeData(chatId, subscribeValue)
+
+      await dataBaseClient.end()
+
+      logger.info(`Data: ${JSON.stringify(subscribeValue)} saved to db ${chatId}`)
+   } catch (error) {
+      logger.error(`Error save to db: ${error.message}`)
+   }
+}
+
+//handling drop subscriptions from db
+async function handleDropSubscribes(chatId, validatorName, type, address) {
+   try {
+      const dataBaseClient = new ClientDb()
+
+      await dataBaseClient.connect()
+
+      const subscribeValue = {
+         name: validatorName,
+         type: type,
+         address: address,
+      }
+
+      await dataBaseClient.deleteSubscribeData(chatId, subscribeValue)
+
+      await dataBaseClient.end()
+
+      logger.info(`Data: ${JSON.stringify(subscribeValue)} deleted from db ${chatId}`)
+   } catch (error) {
+      logger.error(`Error save to db: ${error.message}`)
    }
 }
 
@@ -386,12 +452,47 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
    userSubscriptions[chatId] = userSubscriptions[chatId].filter((obj) => {
       if (obj.name === valName && eventsType === obj.type) {
          obj.ws.close() //close webscoket connection
+         const address = obj.address
+         //drop subscriptions from db
+         handleDropSubscribes(chatId, valName, obj.type, address)
          return //then delete from array
       } else {
          return true //if can't find name nothing to delete
       }
    })
 }
+
+//db handling
+function restoreWsConnections(chatId, type, validatorIdenty, valName) {
+   //create new empty array with key chatId there will be list of active subscriptions
+   if (!userSubscriptions[chatId]) {
+      userSubscriptions[chatId] = []
+   }
+
+   const subscribeData = {} //init object where will be subscribe data
+
+   createWebSocketConnection(validatorIdenty, async (data) => {
+      const parsedData = JSON.parse(data) //convert answer to json
+      if (parsedData) {
+         logger.info(`Successfully restored subscribtion from db for ${chatId}, ${validatorIdenty}, ${valName}`)
+
+         //create object with subscribe data for future unsubscribe and show infor
+         Object.assign(subscribeData, {
+            name: valName,
+            type,
+            text: `Unsubscribe Stake event for ${valName}`,
+            address: validatorIdenty,
+         })
+
+         await userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
+      } else {
+         logger.error(`Error restoring subscribtion from db for ${chatId}, ${validatorIdenty}, ${valName}`)
+      }
+   }).then((ws) => {
+      subscribeData.ws = ws
+   })
+}
+
 export {
    handleGetPrice,
    handleValidatorInfo,
