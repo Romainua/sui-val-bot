@@ -39,6 +39,7 @@ You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_valid
 ```
 TELEGRAM_BOT_TOKEN=<SOME_TOKEN>
 apiUrl=https://fullnode.testnet.sui.io
+WEBSOCKET_apiUrl=wss://fullnode.mainnet.sui.io
 
 #data for connect db
 PGHOST=
@@ -47,7 +48,7 @@ PGPASSWORD=
 PGDATABASE=
 ```
 
-recommended to use the endpoint `https://fullnode.testnet.sui.io`
+recommended to use the endpoint `https://fullnode.testnet.sui.io` and `wss://fullnode.mainnet.sui.io`
 
 3. For this step install docker. Build docker image.
 

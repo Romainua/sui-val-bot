@@ -242,7 +242,7 @@ async function handleNotifyForUpdateBot(bot) {
                { parse_mode: 'Markdown', disable_web_page_preview: true },
             )
             const subscribe_data = dataUser.subscribe_data
-
+            //restore subscribe from db
             subscribe_data.length > 0
                ? subscribe_data.forEach((subsctibe) => {
                     const valAddress = subsctibe.address
@@ -459,37 +459,6 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
       } else {
          return true //if can't find name nothing to delete
       }
-   })
-}
-
-//db handling
-function restoreWsConnections(chatId, type, validatorIdenty, valName) {
-   //create new empty array with key chatId there will be list of active subscriptions
-   if (!userSubscriptions[chatId]) {
-      userSubscriptions[chatId] = []
-   }
-
-   const subscribeData = {} //init object where will be subscribe data
-
-   createWebSocketConnection(validatorIdenty, async (data) => {
-      const parsedData = JSON.parse(data) //convert answer to json
-      if (parsedData) {
-         logger.info(`Successfully restored subscribtion from db for ${chatId}, ${validatorIdenty}, ${valName}`)
-
-         //create object with subscribe data for future unsubscribe and show infor
-         Object.assign(subscribeData, {
-            name: valName,
-            type,
-            text: `Unsubscribe Stake event for ${valName}`,
-            address: validatorIdenty,
-         })
-
-         await userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
-      } else {
-         logger.error(`Error restoring subscribtion from db for ${chatId}, ${validatorIdenty}, ${valName}`)
-      }
-   }).then((ws) => {
-      subscribeData.ws = ws
    })
 }
 
