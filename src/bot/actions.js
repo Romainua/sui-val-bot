@@ -20,7 +20,7 @@ async function handleGetPrice(bot, chatId) {
          .join('\n')
       bot.sendMessage(
          chatId,
-         `Next epoch gas price Total voting power: ${currentVotingPower}\n${formattedValidatorsInfo} `,
+         `Next epoch gas price Total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`,
       )
    } catch (error) {
       bot.sendMessage(chatId, 'Error: ' + error.message)
@@ -45,19 +45,15 @@ async function handleSetCommission(commissionRate, objectOperationCap, signerHel
 async function handleValidatorInfo(bot, chatId, identy) {
    const validatorData = await showCurrentState(identy)
 
-   if (validatorData) {
-      const keyboard = valInfoKeyboard(validatorData)
+   const keyboard = valInfoKeyboard(validatorData)
 
-      bot.sendMessage(chatId, 'Choose a value to display', {
-         reply_markup: keyboard,
-         one_time_keyboard: false,
-         resize_keyboard: true,
-      })
+   bot.sendMessage(chatId, 'Choose a value to display', {
+      reply_markup: keyboard,
+      one_time_keyboard: true,
+      resize_keyboard: true,
+   })
 
-      return validatorData
-   } else {
-      bot.sendMessage(chatId, `Can't find validator`)
-   }
+   return validatorData
 }
 
 async function handleAddValidator(bot, chatId) {
@@ -89,14 +85,16 @@ async function handleSetKey(bot, chatId, key) {
    }
 }
 
-async function handleStakedSuiObjects(bot, chatId, objectOperationCap, signerHelper) {
+async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperationCap, signerHelper) {
    const addressThatAdded = await signerHelper.getAddress()
 
    const validatroData = await showCurrentState(objectOperationCap)
 
    const addressMainOwnerCapObject = validatroData.suiAddress
+
    if (addressThatAdded === addressMainOwnerCapObject) {
-      bot.sendMessage(chatId, 'Sent request. Wait a moment')
+      await bot.sendMessage(chatId, 'Sent request. Wait a moment')
+      bot.answerCallbackQuery(callbackQuery.id)
 
       signerHelper.getStakingPoolIdObjects().then((response) => {
          const filteredObjects = response.data
@@ -279,7 +277,7 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
 
             bot.sendMessage(
                chatId,
-               `New delegetion to ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
+               `➕ Added stake to ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
             )
          } else {
             await bot.deleteMessage(chatId, msgId)
@@ -292,7 +290,7 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
                id: parsedData.result,
                name: valName,
                type: 'delegate',
-               text: `Unsubscribe from Stake event for ${valName}`,
+               text: `Unsubscribe Stake event for ${valName}`,
             })
 
             userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
@@ -338,7 +336,7 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
 
             bot.sendMessage(
                chatId,
-               `Undelegate from ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
+               `➖ Unstaked ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
             )
          } else {
             await bot.deleteMessage(chatId, msgId)
@@ -351,7 +349,7 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
                id: parsedData.result,
                name: valName,
                type: 'undelegate',
-               text: `Unsubscribe from Unstake event for ${valName}`,
+               text: `Unsubscribe Unstake event for ${valName}`,
             })
 
             userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
@@ -376,7 +374,7 @@ async function handleTotalSubscriptions(bot, chatId, msg) {
          },
       })
    } else {
-      bot.editMessageText('You have not subscribed', {
+      bot.editMessageText('⭕ You have not subscribed', {
          chat_id: chatId,
          message_id: msg.message_id,
          reply_markup: subscribeKeyBoard(),
@@ -389,11 +387,9 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
       if (obj.name === valName && eventsType === obj.type) {
          obj.ws.close() //close webscoket connection
          return //then delete from array
-      } else if (obj.name === valName && eventsType === obj.type) {
-         obj.ws.close() //close webscoket connection
-         return //then delete from array
+      } else {
+         return true //if can't find name nothing to delete
       }
-      return true //if can't find name nothing to delete
    })
 }
 export {
