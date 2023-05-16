@@ -20,9 +20,10 @@ not cap operations:
 -  add validator in bot
 -  delete validator from bot
 -  show added validator info (System State)
--  show another validator by name
+-  show another validator info by name
 -  withdraw rewards (from one pool or all)
 -  show validator rewards by name
+-  subsctibe to stake/unstake events
 
 You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
 
@@ -39,9 +40,10 @@ _If you want use bot with db change the branch to `db-impl` and follow the READM
 ```
 TELEGRAM_BOT_TOKEN=<SOME_TOKEN>
 apiUrl=https://fullnode.testnet.sui.io
+WEBSOCKET_apiUrl=wss://fullnode.mainnet.sui.io
 ```
 
-recommended to use the endpoint `https://fullnode.testnet.sui.io`
+recommended to use the endpoint `https://fullnode.testnet.sui.io` and `wss://fullnode.mainnet.sui.io`
 
 3. For this step install docker. Build docker image.
 
