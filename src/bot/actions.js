@@ -238,7 +238,7 @@ async function handleNotifyForUpdateBot(bot) {
 
             bot.sendMessage(
                chatId,
-               `Hello, ${username} bot has been updated. Check latest updates https://github.com/Romainua/sui-val-bot \nI would recommend deploy your own bot (follow the README on repository), then you can use bot safely for: \n- set commission rate for next epoch \n- set gas price for next epoch \n- withdraw rewards from pool or all \n\n*Added new function:*\n - Subscribe to stake events, you will recive message when your validator will get delegation/undelegation.\n\n_You do not need to re-subscribe to events, all subscription have been restored._`,
+               `Hello, ${username} bot has been updated. Check latest updates https://github.com/Romainua/sui-val-bot \nI would recommend deploy your own bot (follow the README on repository), then you can use bot safely for: \n- set commission rate for next epoch \n- set gas price for next epoch \n- withdraw rewards from pool or all \n\n*Added new function:*\n - decrease ping time for ws (there was close connection issue)\n - added history of request\n - minor changes\n Use /start \n\n_You do not need to re-subscribe to events, all subscription have been restored._`,
                {
                   reply_markup: callbackButtonForStartCommand(),
                   parse_mode: 'Markdown',
