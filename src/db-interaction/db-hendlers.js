@@ -35,7 +35,7 @@ class ClientDb extends Client {
    async createTableIfNotExists() {
       const queryText = `
       CREATE TABLE IF NOT EXISTS user_data (
-        id SERIAL PRIMARY KEY,
+        id BIGSERIAL PRIMARY KEY,
         data JSONB,
         subscribe_data JSONB DEFAULT '[]'
       );
