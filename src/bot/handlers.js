@@ -375,7 +375,7 @@ function attachHandlers(bot) {
       if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
          const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
          bot.sendMessage(chatId, 'Input validator name or choose one of history:', {
-            reply_markup: { keyboard: [arrayOfValidatorsName] },
+            reply_markup: { resize_keyboard: true, keyboard: [arrayOfValidatorsName] },
          }).then(() => waitingValidatorNameForRewards.set(chatId, true))
       } else {
          bot.sendMessage(chatId, 'Input validator name:').then(() => {
@@ -464,7 +464,7 @@ function attachHandlers(bot) {
 
             if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
                bot.sendMessage(chatId, 'Input validator name or choose one of history:', {
-                  reply_markup: { keyboard: [arrayOfValidatorsName] },
+                  reply_markup: { resize_keyboard: true, keyboard: [arrayOfValidatorsName] },
                }).then(() => waitingValidatorNameForRewards.set(chatId, true))
             } else {
                bot.sendMessage(chatId, 'Input validator name:').then(() => {
