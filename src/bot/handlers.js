@@ -47,7 +47,35 @@ function attachHandlers(bot) {
    bot.on('message', (msg) => {
       const chatId = msg.chat.id
 
-      let validatorName
+      //ask save name of validator to history or no
+      const askSaveToHistory = (validator_name, waiting) => {
+         let hasRespName = false
+
+         listOfAddedValidatorNames.forEach((item, key) => {
+            // if item array has validator_name (validator name) and key === current chatId
+            if (item.includes(validator_name) && key === chatId) {
+               hasRespName = true
+            }
+         })
+
+         if (hasRespName) {
+            //if has doesn't ask
+            bot.sendMessage(chatId, 'Choose the button', {
+               reply_markup: callbackButtonForStartCommand(),
+            })
+         } else {
+            bot.sendMessage(chatId, `Do you want to save ${validator_name} validator for future requests?`, {
+               reply_markup: {
+                  inline_keyboard: [
+                     [
+                        { text: 'Yes', callback_data: `save_val_name:${validator_name}` },
+                        { text: '⬅ Back', callback_data: 'main_menu' },
+                     ],
+                  ],
+               },
+            }).then(() => waiting.set(chatId, false))
+         }
+      }
 
       //show my validator & add validator waiting key
       if (waitingForValidatorKey.get(chatId)) {
@@ -107,8 +135,7 @@ function attachHandlers(bot) {
                     logger.info(
                        `User ${msg.from.username} (${msg.from.id}) called show validator data by ${validatorName}`,
                     )
-
-                    waitingForValidatorName.set(chatId, false)
+                    askSaveToHistory(validatorName, waitingForValidatorName)
                  })
                  .catch(() => {
                     bot.sendMessage(chatId, `❗ Can't find validator`, {
@@ -267,35 +294,7 @@ function attachHandlers(bot) {
                           remove_keyboard: true,
                        },
                     })
-                    const askMessage = () => {
-                       bot.sendMessage(chatId, `Do you want to save ${resp.name} validator for future requests?`, {
-                          reply_markup: {
-                             inline_keyboard: [
-                                [
-                                   { text: 'Yes', callback_data: `save_val_name:${resp.name}` },
-                                   { text: '⬅ Back', callback_data: 'main_menu' },
-                                ],
-                             ],
-                          },
-                       }).then(() => waitingValidatorNameForRewards.set(chatId, false))
-                    }
-                    let hasRespName = false
-
-                    listOfAddedValidatorNames.forEach((item, key) => {
-                       // if item array has resp.name (validator name) and key === current chatId
-                       if (item.includes(resp.name) && key === chatId) {
-                          hasRespName = true
-                       }
-                    })
-
-                    if (hasRespName) {
-                       //if has doesn't ask
-                       bot.sendMessage(chatId, 'Choose the button', {
-                          reply_markup: callbackButtonForStartCommand(),
-                       })
-                    } else {
-                       askMessage()
-                    }
+                    askSaveToHistory(resp.name, waitingValidatorNameForRewards)
 
                     logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
                  })
@@ -361,7 +360,23 @@ function attachHandlers(bot) {
 
    bot.onText(new RegExp('/valinfo'), (msg) => {
       const chatId = msg.chat.id
-      bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForMainMenu() })
+
+      const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
+
+      if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
+         const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
+
+         bot.sendMessage(chatId, 'Input validator name or choose one of history:', {
+            reply_markup: { resize_keyboard: true, keyboard: [arrayOfValidatorsName] },
+         }).then(() => {
+            waitingForValidatorName.set(chatId, true)
+         })
+      } else {
+         bot.sendMessage(chatId, 'Input validator name:').then(() => {
+            waitingForValidatorName.set(chatId, true)
+         })
+      }
+
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /valinfo command`)
    })
 
@@ -405,8 +420,6 @@ function attachHandlers(bot) {
    })
    //callback query
    bot.on('callback_query', async (callbackQuery) => {
-      //clear all active waiting
-
       const chatId = callbackQuery.message.chat.id
       const msgId = callbackQuery.message.message_id
       const callBackData = callbackQuery.data
@@ -431,6 +444,8 @@ function attachHandlers(bot) {
          // if callback_data,isn't json then we split it as string
          action = callbackQuery.data.split(':')[0] //split data for find validator name and type of subscibe for unsubscribe
       }
+      //get array of history requests
+      const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
 
       switch (action) {
          case 'set_stake_notify':
@@ -450,13 +465,20 @@ function attachHandlers(bot) {
                `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_val_info (Validator Info by Name) callback`,
             )
 
-            bot.sendMessage(chatId, 'Input validator name:', {
-               reply_markup: backReplyForMainMenu(),
-            }).then(() => {
-               bot.deleteMessage(chatId, msgId)
-               bot.answerCallbackQuery(callbackQuery.id)
-               waitingForValidatorName.set(chatId, true)
-            })
+            if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
+               const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
+
+               bot.sendMessage(chatId, 'Input validator name or choose one of history:', {
+                  reply_markup: { resize_keyboard: true, keyboard: [arrayOfValidatorsName] },
+               }).then(() => {
+                  waitingForValidatorName.set(chatId, true)
+               })
+            } else {
+               bot.sendMessage(chatId, 'Input validator name:').then(() => {
+                  waitingForValidatorName.set(chatId, true)
+               })
+            }
+            bot.answerCallbackQuery(callbackQuery.id)
 
             break
 
@@ -464,8 +486,6 @@ function attachHandlers(bot) {
             logger.info(
                `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_rewards (Show Rewards By Validator Name) callback`,
             )
-
-            const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
 
             if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
                bot.sendMessage(chatId, 'Input validator name or choose one of history:', {

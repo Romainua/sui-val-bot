@@ -47,7 +47,7 @@ async function handleValidatorInfo(bot, chatId, identy) {
 
    const keyboard = valInfoKeyboard(validatorData)
 
-   bot.sendMessage(chatId, 'Choose a value to display', {
+   await bot.sendMessage(chatId, 'Choose a value to display', {
       reply_markup: keyboard,
       one_time_keyboard: true,
       resize_keyboard: true,
