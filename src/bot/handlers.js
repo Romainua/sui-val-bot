@@ -1,12 +1,7 @@
 import {
    handleGetPrice,
    handleValidatorInfo,
-   handleSetKey,
-   handleStakedSuiObjects,
-   handleWithdrawFromPoolId,
-   handleWithdrawAllRewards,
    handleStakedSuiObjectsByName,
-   handleSetCommission,
    handleStartCommand,
    handleNotifyForUpdateBot,
    handleStakeWsSubscribe,
@@ -14,28 +9,20 @@ import {
    handleUnsubscribeFromStakeEvents,
    handleUnstakeWsSubscribe,
 } from './actions.js'
-
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from './handle-logs/logger.js'
 import {
    subscribeKeyBoard,
    backReply,
-   validatroControlKeyboard,
-   backReplyForControlValidator,
    callbackButtonForStartCommand,
    backReplyForMainMenu,
 } from './keyboards/keyboard.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
-const waitingForValidatorKey = new Map()
-const signerAddrMap = new Map() //this map has signer, address, signerHelper, objectOperationCap
-const waitingForGasPrice = new Map()
-const waitingForCommissionRate = new Map()
-const waitingForPoolID = new Map()
 const waitingValidatorNameForRewards = new Map()
 const waitingForValidatorNameForWsConnection = new Map()
-const listOfAddedValidatorNames = new Map() //here saving validator name for future requests
+const listOfAddedValidatorNames = new Map() //here saving validator name for future requests, history of requests
 
 function attachHandlers(bot) {
    //send msgs to users when bot have been updated
@@ -59,7 +46,7 @@ function attachHandlers(bot) {
          })
 
          if (hasRespName) {
-            //if has doesn't ask
+            //if history has name doesn't ask
             bot.sendMessage(chatId, 'Choose a button', {
                reply_markup: callbackButtonForStartCommand(),
             })
@@ -74,52 +61,6 @@ function attachHandlers(bot) {
                   ],
                },
             }).then(() => waiting.set(chatId, false))
-         }
-      }
-
-      //show my validator & add validator waiting key
-      if (waitingForValidatorKey.get(chatId)) {
-         //close wating if were push one of tg commands
-         if (LIST_OF_COMMANDS.includes(msg.text)) {
-            waitingForValidatorKey.set(chatId, { status: false })
-            logger.info(`Exit from add key input through call commands`)
-            return
-         }
-
-         const { status, msgId } = waitingForValidatorKey.get(chatId)
-
-         //check status if waiting
-         if (status) {
-            handleSetKey(bot, chatId, msg.text)
-               .then((resp) => {
-                  if (resp) {
-                     const { signer, address, signerHelper, objectOperationCap } = resp
-
-                     //add val data to map
-                     signerAddrMap.set(chatId, {
-                        validator_signer: signer,
-                        address: address,
-                        signerHelper: signerHelper,
-                        objectOperationCap: objectOperationCap,
-                     })
-
-                     waitingForValidatorKey.set(chatId, { status: false }) //set status false for waitng
-
-                     //edit 'Input val privat key' msg to send val control keyboard after added validator
-                     bot.editMessageText('✅ Validator has been added', {
-                        chat_id: chatId,
-                        message_id: msgId,
-                        reply_markup: validatroControlKeyboard(),
-                     })
-
-                     logger.info(`User ${msg.from.username} (${msg.from.id}) validator added`)
-                  }
-               })
-               .catch((err) => {
-                  logger.error(`Error handling key: ${err}`)
-               })
-            bot.deleteMessage(chatId, msg.message_id) //delete private key from chat
-            return
          }
       }
 
@@ -143,134 +84,6 @@ function attachHandlers(bot) {
                     })
                     logger.info(`User ${msg.from.username} (${msg.from.id}). Can't find validator ${validatorName}`)
                  })
-
-         return
-      }
-
-      //set gas price waiting
-      if (waitingForGasPrice.get(chatId)) {
-         //close wating if were push one of tg commands
-         if (LIST_OF_COMMANDS.includes(msg.text)) {
-            waitingForGasPrice.set(chatId, false)
-            return
-         }
-
-         const gasPrice = msg.text
-
-         if (isNaN(gasPrice) || Number(gasPrice) < 0) {
-            bot.sendMessage(chatId, 'Invalid input. Please enter a positive number.')
-            return
-         }
-
-         const validatorSignerAddress = signerAddrMap.get(chatId)
-         const { signerHelper, objectOperationCap } = validatorSignerAddress
-
-         bot.sendMessage(chatId, 'Sent request. Wait a moment')
-         signerHelper
-            .setGasPrice(gasPrice, objectOperationCap)
-            .then((respTx) => {
-               bot.sendMessage(
-                  chatId,
-                  `✅ Successfully set gas price.\ntx link: https://explorer.sui.io/txblock/${respTx.result.digest}`,
-               ).then(() => {
-                  bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
-               })
-
-               logger.info(`User ${msg.from.username} (${msg.from.id}) successfully set gas price`)
-            })
-            .catch((err) => {
-               bot.sendMessage(chatId, `${err.message}`)
-               logger.error(`❗ User ${msg.from.username} (${msg.from.id}) error set gas price`)
-            })
-
-         // Reset the waiting state
-         waitingForGasPrice.set(chatId, false)
-         return
-      }
-
-      //set commssion rate wating
-      if (waitingForCommissionRate.get(chatId)) {
-         //close wating if were push one of tg commands
-         if (LIST_OF_COMMANDS.includes(msg.text)) {
-            waitingForCommissionRate.set(chatId, false)
-            return
-         }
-
-         const commissionRate = msg.text
-
-         if (isNaN(commissionRate) || Number(commissionRate) < 0) {
-            bot.sendMessage(chatId, 'Invalid input. Please enter a positive number.')
-            return
-         }
-
-         const validatorSignerAddress = signerAddrMap.get(chatId)
-
-         if (validatorSignerAddress) {
-            const { objectOperationCap, signerHelper } = validatorSignerAddress
-
-            bot.sendMessage(chatId, 'Sent request. Wait a moment')
-            handleSetCommission(commissionRate, objectOperationCap, signerHelper)
-               .then((response) => {
-                  if (response.result?.digest) {
-                     bot.sendMessage(
-                        chatId,
-                        `✅ Successfully set commission rate.\n tx link: https://explorer.sui.io/txblock/${response.result?.digest}`,
-                     ).then(() => {
-                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
-                     })
-
-                     logger.info(`User ${msg.from.username} (${msg.from.id}) successfully set commission.`)
-                  } else {
-                     bot.sendMessage(chatId, `${response}`).then(() => {
-                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
-                     })
-                  }
-               })
-               .catch((err) => {
-                  if (err.message.includes(`No valid gas coins found for the transaction.`)) {
-                     bot.sendMessage(chatId, `❗ ${err} Get some gas coins for pay tx.`).then(() => {
-                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
-                     })
-                  } else {
-                     bot.sendMessage(chatId, `❗ ${err}`).then(() => {
-                        bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
-                     })
-                  }
-               })
-         } else {
-            bot.sendMessage(chatId, 'Firstly add a validator')
-         }
-
-         // Reset the waiting state
-         waitingForCommissionRate.set(chatId, false)
-         return
-      }
-
-      //set staked pool id wating
-      if (waitingForPoolID.get(chatId)) {
-         const getValSignerAddress = signerAddrMap.get(chatId)
-         const { signerHelper } = getValSignerAddress
-         const stakedPoolId = msg.text
-
-         LIST_OF_COMMANDS.includes(msg.text)
-            ? waitingForPoolID.set(chatId, false) //close wating if were push one of tg commands
-            : handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId).then(async (resp) => {
-                 if (resp.digest) {
-                    bot.sendMessage(chatId, `✅ tx link: https://explorer.sui.io/txblock/${resp.digest}`).then(() => {
-                       bot.sendMessage(chatId, 'Choose the button:', {
-                          reply_markup: callbackButtonForStartCommand(),
-                       })
-                    })
-
-                    logger.info(`User ${msg.from.username} (${msg.from.id}) successfully withdraw from pool`)
-                 } else {
-                    bot.sendMessage(chatId, `${resp}`).then(() => {
-                       bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
-                    })
-                    logger.warn(`User ${msg.from.username} (${msg.from.id}) didn't withdraw from pool`)
-                 }
-                 waitingForPoolID.set(chatId, false)
-              })
 
          return
       }
@@ -351,11 +164,18 @@ function attachHandlers(bot) {
       const chatId = msg.chat.id
       bot.sendMessage(
          chatId,
-         "Welcome! I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
+         "Welcome! I'll help you get the validator information. Choose a button to get infromation about validator.",
          { reply_markup: callbackButtonForStartCommand() },
       )
       handleStartCommand(chatId, msg)
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
+   })
+
+   bot.onText(new RegExp('/menu'), (msg) => {
+      const chatId = msg.chat.id
+      bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForStartCommand() })
+      handleStartCommand(chatId, msg)
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
    })
 
    bot.onText(new RegExp('/valinfo'), (msg) => {
@@ -410,14 +230,6 @@ function attachHandlers(bot) {
       handleGetPrice(bot, chatId)
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /gasprice command`)
    })
-
-   bot.onText(new RegExp('/valcontrol'), (msg) => {
-      const chatId = msg.chat.id
-      bot.sendMessage(chatId, '🕹 Validator control menu. Firstly Add Validator.', {
-         reply_markup: validatroControlKeyboard(),
-      })
-      logger.info(`User ${msg.from.username} (${msg.from.id}) called /valcontrol command`)
-   })
    //callback query
    bot.on('callback_query', async (callbackQuery) => {
       const chatId = callbackQuery.message.chat.id
@@ -428,11 +240,7 @@ function attachHandlers(bot) {
       //set all waitng to false
       waitingForValidatorName.set(chatId, false)
       waitingValidatorNameForRewards.set(chatId, false)
-      waitingForValidatorKey.set(chatId, { status: false })
-      waitingForGasPrice.set(chatId, false)
-      waitingForCommissionRate.set(chatId, false)
       waitingForValidatorNameForWsConnection.set(chatId, { status: false })
-      waitingForPoolID.set(chatId, false)
 
       let action
       let callbackData
@@ -509,137 +317,6 @@ function attachHandlers(bot) {
                await bot.answerCallbackQuery(callbackQuery.id)
                bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
             })
-            break
-
-         case 'val_control':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used val_control (Validator Control) callback`,
-            )
-
-            bot.editMessageText('🕹 Validator control menu. Firstly Add Validator.', {
-               chat_id: chatId,
-               message_id: msgId,
-               reply_markup: validatroControlKeyboard(),
-            }).then(() => {
-               bot.answerCallbackQuery(callbackQuery.id)
-            })
-
-            break
-
-         case 'add_validator':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used  add_validator (Add Validator) сallback`,
-            )
-
-            if (signerAddrMap.size > 0) {
-               bot.deleteMessage(chatId, msgId).then(() => {
-                  bot.sendMessage(chatId, '❗ Validator have been added.', {
-                     reply_markup: callbackButtonForStartCommand(),
-                  })
-               })
-               return
-            }
-            bot.deleteMessage(chatId, msg.message_id).then(() => {
-               bot.sendMessage(chatId, 'Please input the privat key:', {
-                  reply_markup: { inline_keyboard: backReplyForControlValidator() },
-               }).then((message) => {
-                  waitingForValidatorKey.set(chatId, { status: true, msgId: message.message_id })
-               })
-            })
-
-            break
-
-         case 'show_my_validator':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_my_validator (Show My Validator) callback`,
-            )
-
-            if (signerAddrMap.has(chatId)) {
-               validatorNames.clear() //clear current validator for get data
-
-               const valData = signerAddrMap.get(chatId)
-               const { address } = valData
-
-               handleValidatorInfo(bot, chatId, address).then(() => {
-                  validatorNames.set(chatId, address)
-                  bot.answerCallbackQuery(callbackQuery.id)
-               })
-            } else {
-               bot.sendMessage(chatId, 'Firstly Add Validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
-               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
-            }
-
-            break
-
-         case 'set_gas_price':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used set_gas_price (Set Gas) callback`,
-            )
-
-            if (signerAddrMap.has(chatId)) {
-               bot.sendMessage(chatId, 'Enter gas price for next epoch:', {
-                  reply_markup: { inline_keyboard: backReplyForControlValidator() },
-               }).then(async () => {
-                  await bot.answerCallbackQuery(callbackQuery.id)
-                  bot.deleteMessage(chatId, msgId)
-               })
-
-               waitingForGasPrice.set(chatId, true)
-            } else {
-               bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
-               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
-            }
-            break
-
-         case 'set_commission_rate':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used set_commission_rate (Set Commission Rate) callback`,
-            )
-
-            if (signerAddrMap.has(chatId)) {
-               bot.sendMessage(chatId, 'Input commision rate for next epoch:', {
-                  reply_markup: { inline_keyboard: backReplyForControlValidator() },
-               }).then(async () => {
-                  bot.answerCallbackQuery(callbackQuery.id)
-                  bot.deleteMessage(chatId, msgId)
-               })
-
-               waitingForCommissionRate.set(chatId, true)
-            } else {
-               bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
-               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
-            }
-            break
-
-         case 'withdraw_rewards':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used withdraw_rewards (Withdraw Rewards) callback`,
-            )
-
-            if (signerAddrMap.has(chatId)) {
-               const validatorSignerAddress = signerAddrMap.get(chatId)
-               const { signerHelper, objectOperationCap } = validatorSignerAddress
-               handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperationCap, signerHelper)
-            } else {
-               bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
-               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
-            }
-            break
-
-         case 'delete_validator':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delete_validator (Delete Validator) callback`,
-            )
-
-            if (signerAddrMap.has(chatId)) {
-               signerAddrMap.clear()
-               bot.sendMessage(chatId, '✅ Deleted', {
-                  reply_markup: callbackButtonForStartCommand(),
-               }).then(() => bot.answerCallbackQuery(callbackQuery.id))
-            } else {
-               bot.sendMessage(chatId, '⛔ Validator not added').then(() => bot.answerCallbackQuery(callbackQuery.id))
-               logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
-            }
             break
 
          //stake subscription
@@ -733,22 +410,6 @@ function attachHandlers(bot) {
                bot.answerCallbackQuery(callbackQuery.id)
             })
 
-            break
-
-         case 'back_button_for_val_control':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used back_button_for_val_control (Back Button for Validator Control) callback`,
-            )
-            const listOfWaiting = [waitingForGasPrice, waitingForCommissionRate, waitingForPoolID]
-            listOfWaiting.forEach((map) => {
-               map.clear()
-            })
-
-            bot.editMessageText('🕹 Validator control menu. Firstly Add Validator.', {
-               chat_id: chatId,
-               message_id: msg.message_id,
-               reply_markup: validatroControlKeyboard(),
-            }).then(() => bot.answerCallbackQuery(callbackQuery.id))
             break
 
          case 'withdraw_all':

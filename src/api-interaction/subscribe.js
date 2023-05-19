@@ -37,7 +37,7 @@ async function createWebSocketConnection(validatorAddress, messageHandler) {
 
       setInterval(() => {
          ws.ping()
-      }, 15000)
+      }, 5000)
    })
 
    //when we get msg
