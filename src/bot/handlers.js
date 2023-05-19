@@ -220,9 +220,12 @@ function attachHandlers(bot) {
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /rewards command`)
    })
 
-   bot.onText(new RegExp('/gasprice'), (msg) => {
+   bot.onText(new RegExp('/gasprice'), async (msg) => {
       const chatId = msg.chat.id
-      handleGetPrice(bot, chatId)
+
+      await handleGetPrice(bot, chatId)
+      bot.sendMessage(chatId, 'Choose a button:', { reply_markup: callbackButtonForStartCommand() })
+
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /gasprice command`)
    })
    //callback query
@@ -308,10 +311,10 @@ function attachHandlers(bot) {
                `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_gas_price (Show Gas Price) callback`,
             )
 
-            handleGetPrice(bot, chatId).then(async () => {
-               await bot.answerCallbackQuery(callbackQuery.id)
-               bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
-            })
+            await handleGetPrice(bot, chatId)
+            bot.answerCallbackQuery(callbackQuery.id)
+            bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
+
             break
 
          //stake subscription
@@ -404,37 +407,6 @@ function attachHandlers(bot) {
             }).then(() => {
                bot.answerCallbackQuery(callbackQuery.id)
             })
-
-            break
-
-         case 'withdraw_all':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called withdraw_all (Withdraw All Rewards) callback`,
-            )
-
-            bot.editMessageReplyMarkup(
-               { inline_keyboard: [] },
-               {
-                  chat_id: chatId,
-                  message_id: callbackQuery.message.message_id,
-               },
-            ).catch((error) => {
-               console.error('Error updating keyboard:', error)
-            })
-
-            bot.sendMessage(chatId, 'Sent request. Withdrawing all rewards...')
-
-            const validatorSignerAddress = signerAddrMap.get(chatId)
-
-            const { signerHelper } = validatorSignerAddress
-            const result = await handleWithdrawAllRewards(signerHelper)
-
-            if (result) {
-               bot.sendMessage(chatId, `${result}`)
-               bot.answerCallbackQuery(callbackQuery.id) //answer to callback request, close download notice
-            } else {
-               console.log(result)
-            }
 
             break
 
