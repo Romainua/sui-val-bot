@@ -1,7 +1,7 @@
 {
    "name": "sui-validator-bot",
    "version": "1.0.0",
-   "description": "",
+   "description": "Bot for Sui validators",
    "main": "index.js",
    "scripts": {
       "start": "node src/index.js",

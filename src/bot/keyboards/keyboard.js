@@ -1,23 +1,3 @@
-function validatroControlKeyboard() {
-   return {
-      inline_keyboard: [
-         [
-            { text: 'Add Validator', callback_data: 'add_validator' },
-            { text: 'Show My Validator Info', callback_data: 'show_my_validator' },
-         ],
-         [
-            { text: 'Set Gas Price', callback_data: 'set_gas_price' },
-            { text: 'Set Commission Rate', callback_data: 'set_commission_rate' },
-         ],
-         [
-            { text: 'Withdraw Rewards', callback_data: 'withdraw_rewards' },
-            { text: 'Delete Validator', callback_data: 'delete_validator' },
-         ],
-         [{ text: '⬅ Back', callback_data: 'main_menu' }],
-      ],
-   }
-}
-
 function subscribeKeyBoard() {
    return {
       inline_keyboard: [
@@ -31,12 +11,11 @@ function subscribeKeyBoard() {
    }
 }
 
+//button for back in subscribes
 function backReply() {
    return [[{ text: '⬅ Back', callback_data: 'back_button' }]]
 }
-function backReplyForControlValidator() {
-   return [[{ text: '⬅ Back', callback_data: 'back_button_for_val_control' }]]
-}
+
 function backReplyForMainMenu() {
    return {
       inline_keyboard: [[{ text: '⬅ Back', callback_data: 'main_menu' }]],
@@ -65,17 +44,8 @@ function callbackButtonForStartCommand() {
             { text: 'Show Rewards', callback_data: 'show_rewards' },
             { text: 'Show Gas Price', callback_data: 'show_gas_price' },
          ],
-         [{ text: 'Validator Control', callback_data: 'val_control' }],
       ],
    }
 }
 
-export {
-   subscribeKeyBoard,
-   backReply,
-   unsubscribeCallBackButton,
-   validatroControlKeyboard,
-   backReplyForControlValidator,
-   callbackButtonForStartCommand,
-   backReplyForMainMenu,
-}
+export { subscribeKeyBoard, backReply, unsubscribeCallBackButton, callbackButtonForStartCommand, backReplyForMainMenu }
