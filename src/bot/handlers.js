@@ -224,11 +224,12 @@ function attachHandlers(bot) {
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /rewards command`)
    })
 
-   bot.onText(new RegExp('/gasprice'), async (msg) => {
+   bot.onText(new RegExp('/gasprice'), (msg) => {
       const chatId = msg.chat.id
 
-      await handleGetPrice(bot, chatId)
-      bot.sendMessage(chatId, 'Choose a button:', { reply_markup: callbackButtonForStartCommand() })
+      handleGetPrice(bot, chatId).then(() => {
+         bot.sendMessage(chatId, 'Choose a button:', { reply_markup: callbackButtonForStartCommand() })
+      })
 
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /gasprice command`)
    })
