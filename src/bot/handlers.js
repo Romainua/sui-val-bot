@@ -23,7 +23,7 @@ const waitingForValidatorNameForWsConnection = new Map()
 const listOfAddedValidatorNames = new Map() //here saving validator name for future requests, history of requests
 
 function attachHandlers(bot) {
-   const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/valcontrol', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
+   const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/menu', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
 
    //handling custom messages, input name, key, gas, commission...
    bot.on('message', (msg) => {
