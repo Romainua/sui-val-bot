@@ -1,6 +1,7 @@
 # Sui Validator Bot
 
-This bot is manager of your validator. Bot uses:
+The bot is manager of your validator. This version will use cap operations, you can add your validator private key. Bot
+uses:
 
 cap operations:
 
