@@ -227,9 +227,7 @@ function attachHandlers(bot) {
    bot.onText(new RegExp('/gasprice'), (msg) => {
       const chatId = msg.chat.id
 
-      handleGetPrice(bot, chatId).then(() => {
-         bot.sendMessage(chatId, 'Choose a button:', { reply_markup: callbackButtonForStartCommand() })
-      })
+      handleGetPrice(bot, chatId)
 
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /gasprice command`)
    })
@@ -315,10 +313,8 @@ function attachHandlers(bot) {
             logger.info(
                `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_gas_price (Show Gas Price) callback`,
             )
-
             await handleGetPrice(bot, chatId)
             bot.answerCallbackQuery(callbackQuery.id)
-            bot.sendMessage(chatId, 'Choose the button:', { reply_markup: callbackButtonForStartCommand() })
 
             break
 

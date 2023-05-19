@@ -17,10 +17,11 @@ async function handleGetPrice(bot, chatId) {
                `${index + 1} ${name}: ${nextEpochGasPrice}, vp – ${votingPower}`,
          )
          .join('\n')
-      bot.sendMessage(
+      await bot.sendMessage(
          chatId,
-         `Next epoch gas price Total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`,
+         `Next epoch gas price by total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`,
       )
+      bot.sendMessage(chatId, `Choose a button`, { reply_markup: callbackButtonForStartCommand() })
    } catch (error) {
       bot.sendMessage(chatId, 'Error: ' + error.message)
    }
