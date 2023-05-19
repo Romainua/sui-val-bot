@@ -409,28 +409,6 @@ function attachHandlers(bot) {
 
             break
 
-         case 'withdraw_pool':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called withdraw_pool (Withdraw From Pool) callback`,
-            )
-
-            bot.editMessageReplyMarkup(
-               { inline_keyboard: [] },
-               {
-                  chat_id: chatId,
-                  message_id: callbackQuery.message.message_id,
-               },
-            ).catch((error) => {
-               console.error('Error updating keyboard:', error)
-            })
-            waitingForPoolID.set(chatId, true)
-
-            await bot.sendMessage(chatId, 'Input Pool ID or /menu to return :', {
-               reply_markup: { inline_keyboard: backReplyForControlValidator() },
-            })
-            bot.deleteMessage(chatId, msgId)
-            bot.answerCallbackQuery(callbackQuery.id)
-            break
          //when user choosen to save validator name for future requests
          case 'save_val_name':
             const valNameForSave = callbackQuery.data.split(':')[1]
