@@ -41,7 +41,7 @@ function attachHandlers(bot) {
          })
 
          if (hasRespName) {
-            //if has doesn't ask
+            //if history has name doesn't ask
             bot.sendMessage(chatId, 'Choose a button', {
                reply_markup: callbackButtonForStartCommand(),
             })
@@ -160,10 +160,17 @@ function attachHandlers(bot) {
       const chatId = msg.chat.id
       bot.sendMessage(
          chatId,
-         "Welcome! I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
+         "Welcome! I'll help you get the validator information. Choose a button to get infromation about validator.",
          { reply_markup: callbackButtonForStartCommand() },
       )
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
+   })
+
+   bot.onText(new RegExp('/menu'), (msg) => {
+      const chatId = msg.chat.id
+      bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForStartCommand() })
+      handleStartCommand(chatId, msg)
+      logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
    })
 
    bot.onText(new RegExp('/valinfo'), (msg) => {
