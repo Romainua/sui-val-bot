@@ -1,8 +1,8 @@
-# Sui Validator Bot with db and cap operations
+# Sui Validator Bot with db
 
 The bot is manager of your validator. Bot uses:
 
-cap operations:
+cap operations (change branch to val-ctrl or db/val-contrl):
 
 -  `request_set_gas_price`
 -  `request_set_commission_rate`
@@ -15,16 +15,19 @@ not cap operations:
 ## Bot capabilities:
 
 -  fetch gas price for next epoch by 2/3 (6666) of validators
--  set gas for next epoch
--  set commission rate for next epoch
--  add validator in bot
--  delete validator from bot
 -  show added validator info (System State)
 -  show another validator by name
 -  withdraw rewards (from one pool or all)
 -  show validator rewards by name
 -  save user data and chat id to db
 -  subscribe to stake/unstake events
+
+**If want use these functionality change branch to val-ctrl or db/val-contrl**
+
+-  set gas for next epoch
+-  set commission rate for next epoch
+-  add validator in bot
+-  delete validator from bot
 
 You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
 
