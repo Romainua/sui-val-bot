@@ -60,7 +60,7 @@ function attachHandlers(bot) {
 
          if (hasRespName) {
             //if has doesn't ask
-            bot.sendMessage(chatId, 'Choose the button', {
+            bot.sendMessage(chatId, 'Choose a button', {
                reply_markup: callbackButtonForStartCommand(),
             })
          } else {

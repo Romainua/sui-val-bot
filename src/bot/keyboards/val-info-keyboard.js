@@ -18,7 +18,6 @@ function valInfoKeyboard(validatorData) {
       }
       buttonPairs.push(pair)
    }
-   buttonPairs.push([{ text: '⬅ Back', callback_data: 'main_menu' }]) //add back button
 
    const keyboard = {
       inline_keyboard: buttonPairs,
