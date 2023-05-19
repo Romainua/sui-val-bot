@@ -1,6 +1,6 @@
-# Sui Validator Bot with db
+# Sui Validator Bot with db and cap operations
 
-This bot is manager of your validator. Bot uses:
+The bot is manager of your validator. Bot uses:
 
 cap operations:
 
@@ -11,6 +11,8 @@ cap operations:
 not cap operations:
 
 -  `get validator System State info`
+
+_Save users data to db_
 
 ## Bot capabilities:
 
