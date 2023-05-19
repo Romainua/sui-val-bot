@@ -174,7 +174,6 @@ function attachHandlers(bot) {
    bot.onText(new RegExp('/menu'), (msg) => {
       const chatId = msg.chat.id
       bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForStartCommand() })
-      handleStartCommand(chatId, msg)
       logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
    })
 
