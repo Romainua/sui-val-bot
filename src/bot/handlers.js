@@ -3,12 +3,14 @@ import {
    handleValidatorInfo,
    handleStakedSuiObjectsByName,
    handleStartCommand,
-   handleNotifyForUpdateBot,
-   handleStakeWsSubscribe,
+} from './actions/actions.js'
+import {
+   handleInitRestorSubscriptions,
    handleTotalSubscriptions,
    handleUnsubscribeFromStakeEvents,
-   handleUnstakeWsSubscribe,
-} from './actions.js'
+   handleInitSubscription,
+} from './actions/ws-handling.js'
+
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from './handle-logs/logger.js'
 import {
@@ -26,7 +28,7 @@ const listOfAddedValidatorNames = new Map() //here saving validator name for fut
 
 function attachHandlers(bot) {
    //send msgs to users when bot have been updated
-   handleNotifyForUpdateBot(bot)
+   handleInitRestorSubscriptions(bot)
 
    const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/menu', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
 
@@ -131,23 +133,28 @@ function attachHandlers(bot) {
                     .then((data) => {
                        const valAddress = data.suiAddress
 
-                       if (type == 'delegate') {
-                          handleStakeWsSubscribe(bot, chatId, valAddress, validatorName, msgId)
-                          waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+                       handleInitSubscription(bot, chatId, valAddress, validatorName, type)
+                          .then(async () => {
+                             waitingForValidatorNameForWsConnection.set(chatId, { status: false })
 
-                          logger.info(
-                             `User ${msg.from.username} (${msg.from.id}) Subscribed to Stake for ${validatorName}`,
-                          )
-                       } else if (type == 'undelegate') {
-                          handleUnstakeWsSubscribe(bot, chatId, valAddress, validatorName, msgId)
-                          waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+                             await bot.deleteMessage(chatId, msgId)
 
-                          logger.info(
-                             `User ${msg.from.username} (${msg.from.id}) Subscribed to Untake for ${validatorName}`,
-                          )
-                       }
+                             bot.sendMessage(chatId, `Event for ${validatorName} has been added`, {
+                                reply_markup: subscribeKeyBoard(),
+                             })
+                          })
+                          .catch(() => {
+                             bot.sendMessage(chatId, `⭕ This event has been added for ${validatorName}`, {
+                                reply_markup: subscribeKeyBoard(),
+                             })
+                          })
+
+                       logger.info(
+                          `User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${validatorName}`,
+                       )
                     })
-                    .catch(() => {
+                    .catch((err) => {
+                       console.log(err)
                        bot.sendMessage(chatId, "❗ Can't find validator.", {
                           reply_markup: { inline_keyboard: backReply() },
                        })
@@ -327,11 +334,11 @@ function attachHandlers(bot) {
             bot.deleteMessage(chatId, msgId)
             bot.sendMessage(chatId, 'Input validator name:', {
                reply_markup: { inline_keyboard: backReply() },
-            }).then((message) => {
+            }).then((msg) => {
                waitingForValidatorNameForWsConnection.set(chatId, {
                   status: true,
                   type: 'delegate',
-                  msgId: message.message_id, //add id of message for delete it
+                  msgId: msg.message_id,
                })
                bot.answerCallbackQuery(callbackQuery.id)
             })
@@ -384,7 +391,8 @@ function attachHandlers(bot) {
                   })
                   bot.answerCallbackQuery(callbackQuery.id)
                })
-               .catch(() => {
+               .catch((err) => {
+                  console.log(err)
                   bot.editMessageText("⛔ Can't find subscription. ", {
                      chat_id: chatId,
                      message_id: msg.message_id,
