@@ -39,7 +39,7 @@ function attachHandlers(bot) {
          })
 
          if (hasRespName) {
-            //if history has name doesn't ask
+            //if history has name then doesn't ask
             bot.sendMessage(chatId, 'Choose a button', {
                reply_markup: callbackButtonForStartCommand(),
             })
@@ -75,7 +75,7 @@ function attachHandlers(bot) {
                     bot.sendMessage(chatId, `❗ Can't find validator`, {
                        reply_markup: backReplyForMainMenu(),
                     })
-                    logger.info(`User ${msg.from.username} (${msg.from.id}). Can't find validator ${validatorName}`)
+                    logger.info(`User ${msg.from.username} (${msg.from.id}) Can't find validator ${validatorName}`)
                  })
 
          return
@@ -211,6 +211,7 @@ function attachHandlers(bot) {
 
       if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
          const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
+
          bot.sendMessage(chatId, 'Input validator name or choose one of history:', {
             reply_markup: { resize_keyboard: true, keyboard: [arrayOfValidatorsName] },
          }).then(() => waitingValidatorNameForRewards.set(chatId, true))
