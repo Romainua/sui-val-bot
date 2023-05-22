@@ -2,6 +2,7 @@ import { getGasPrice, showCurrentState } from '../../api-interaction/system-stat
 import logger from '../../handle-logs/logger.js'
 import valInfoKeyboard from '../keyboards/val-info-keyboard.js'
 import getStakingPoolIdObjectsByName from '../../api-interaction/validator-cap.js'
+import { callbackButtonForStartCommand } from '../keyboards/keyboard.js'
 
 async function handleGetPrice(bot, chatId) {
    try {
