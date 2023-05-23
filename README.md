@@ -1,6 +1,9 @@
 # Sui Validator Bot
 
-This bot is manager of your validator. Bot uses:
+**If there is no working machine nearby it is enough to have a phone to set the necessary parameters for your
+validator**
+
+The bot is manager of your validator. Bot uses:
 
 cap operations (change branch to val-ctrl):
 
