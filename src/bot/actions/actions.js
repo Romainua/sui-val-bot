@@ -56,13 +56,14 @@ async function handleStakedSuiObjectsByName(address) {
 
          return `ID: ${id},Tokens: ${formattedPrincipal}`
       })
+      const totalAmount = totalTokens.toFixed(2)
 
-      infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
+      infoStrings.push(`Total tokens: ${totalAmount}`)
       const poolsMessage = infoStrings.join('\n')
 
-      return poolsMessage
+      return { poolsMessage, totalAmount }
    } else {
-      return `No any staked object`
+      return { poolsMessage: 'No any staked object', totalAmount: 'No any staked object' }
    }
 }
 

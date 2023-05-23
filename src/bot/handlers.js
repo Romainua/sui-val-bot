@@ -39,9 +39,18 @@ function attachHandlers(bot) {
          })
 
          if (hasRespName) {
-            //if history has name then doesn't ask
-            bot.sendMessage(chatId, 'Choose a button', {
-               reply_markup: callbackButtonForStartCommand(),
+            //if history has name doesn't ask
+            bot.sendMessage(chatId, 'waiting...', {
+               //send new message with empty keyboard
+               reply_markup: {
+                  remove_keyboard: true,
+               },
+            }).then((message) => {
+               bot.deleteMessage(chatId, message.message_id) //delete message
+               bot.sendMessage(chatId, 'Choose the button:', {
+                  //send new with Menu keyboards
+                  reply_markup: callbackButtonForStartCommand(),
+               })
             })
          } else {
             bot.sendMessage(chatId, `Do you want to save ${validator_name} validator for future requests?`, {
@@ -53,7 +62,7 @@ function attachHandlers(bot) {
                      ],
                   ],
                },
-            }).then(() => waiting.set(chatId, false))
+            }).then(() => waiting.set(chatId, false)) //set waiting to input to false
          }
       }
 
@@ -66,9 +75,11 @@ function attachHandlers(bot) {
             : handleValidatorInfo(bot, chatId, validatorName)
                  .then(() => {
                     validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callback button
+
                     logger.info(
                        `User ${msg.from.username} (${msg.from.id}) called show validator data by ${validatorName}`,
                     )
+
                     askSaveToHistory(validatorName, waitingForValidatorName)
                  })
                  .catch(() => {
@@ -91,21 +102,21 @@ function attachHandlers(bot) {
                  .then(async (resp) => {
                     const validatorAddress = resp.suiAddress
 
-                    bot.sendMessage(chatId, 'Sent request. Wait a moment')
+                    const { totalAmount } = await handleStakedSuiObjectsByName(validatorAddress)
 
-                    const listofStakedObjects = await handleStakedSuiObjectsByName(validatorAddress)
-
-                    await bot.sendMessage(chatId, `${resp.name} reward pools:\n${listofStakedObjects}`, {
+                    await bot.sendMessage(chatId, `Validator: ${resp.name}\nTotal staked tokens: ${totalAmount} SUI`, {
                        reply_markup: {
-                          remove_keyboard: true,
+                          inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]], //save val name to callback data will resotor it
                        },
                     })
+
                     askSaveToHistory(resp.name, waitingValidatorNameForRewards)
 
                     logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
                  })
 
-                 .catch(() => {
+                 .catch((err) => {
+                    //console.log(err)
                     bot.sendMessage(chatId, "❗ Can't find validator", { reply_markup: backReplyForMainMenu() })
                     logger.warn(`User ${msg.from.username} (${msg.from.id}) can't find validator ${valName}`)
                  })
@@ -189,7 +200,9 @@ function attachHandlers(bot) {
             waitingForValidatorName.set(chatId, true)
          })
       } else {
-         bot.sendMessage(chatId, 'Input validator name:').then(() => {
+         bot.sendMessage(chatId, 'Input validator name:', {
+            reply_markup: backReplyForMainMenu(),
+         }).then(() => {
             waitingForValidatorName.set(chatId, true)
          })
       }
@@ -216,7 +229,7 @@ function attachHandlers(bot) {
             reply_markup: { resize_keyboard: true, keyboard: [arrayOfValidatorsName] },
          }).then(() => waitingValidatorNameForRewards.set(chatId, true))
       } else {
-         bot.sendMessage(chatId, 'Input validator name:').then(() => {
+         bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForMainMenu() }).then(() => {
             waitingValidatorNameForRewards.set(chatId, true)
          })
       }
@@ -263,14 +276,14 @@ function attachHandlers(bot) {
                reply_markup: subscribeKeyBoard(),
             }).then(() => bot.answerCallbackQuery(callbackQuery.id))
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called set_stake_notify (subscribe to stale/unstake) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called set_stake_notify (subscribe to stake/unstake events)`,
             )
 
             break
 
          case 'show_val_info':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_val_info (Validator Info by Name) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_val_info (Validator Info by Name)`,
             )
 
             if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
@@ -282,7 +295,11 @@ function attachHandlers(bot) {
                   waitingForValidatorName.set(chatId, true)
                })
             } else {
-               bot.sendMessage(chatId, 'Input validator name:').then(() => {
+               bot.editMessageText('Input validator name:', {
+                  chat_id: chatId,
+                  message_id: msgId,
+                  reply_markup: backReplyForMainMenu(),
+               }).then(() => {
                   waitingForValidatorName.set(chatId, true)
                })
             }
@@ -292,7 +309,7 @@ function attachHandlers(bot) {
 
          case 'show_rewards':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_rewards (Show Rewards By Validator Name) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_rewards (Show Rewards By Validator Name)`,
             )
 
             if (arrayOfValidatorsName && arrayOfValidatorsName.length > 0) {
@@ -300,7 +317,11 @@ function attachHandlers(bot) {
                   reply_markup: { resize_keyboard: true, keyboard: [arrayOfValidatorsName] },
                }).then(() => waitingValidatorNameForRewards.set(chatId, true))
             } else {
-               bot.sendMessage(chatId, 'Input validator name:').then(() => {
+               bot.editMessageText('Input validator name:', {
+                  chat_id: chatId,
+                  message_id: msgId,
+                  reply_markup: backReplyForMainMenu(),
+               }).then(() => {
                   waitingValidatorNameForRewards.set(chatId, true)
                })
             }
@@ -310,7 +331,7 @@ function attachHandlers(bot) {
 
          case 'show_gas_price':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_gas_price (Show Gas Price) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_gas_price (Show Gas Price)`,
             )
             await handleGetPrice(bot, chatId)
             bot.answerCallbackQuery(callbackQuery.id)
@@ -320,7 +341,7 @@ function attachHandlers(bot) {
          //stake subscription
          case 'delegation':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Notify) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Event)`,
             )
 
             bot.deleteMessage(chatId, msgId)
@@ -340,7 +361,7 @@ function attachHandlers(bot) {
          //unstake subscription
          case 'undelegation':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used undelegation (Subscribe to Unstake Notify) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used undelegation (Subscribe to Unstake Event)`,
             )
 
             bot.deleteMessage(chatId, msgId)
@@ -359,7 +380,7 @@ function attachHandlers(bot) {
 
          case 'check_active_subscriptions':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used check_active_subscriptions (Check list of subscribes) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used check_active_subscriptions (Check List of Subscriptions)`,
             )
             handleTotalSubscriptions(bot, chatId, msg)
             bot.answerCallbackQuery(callbackQuery.id)
@@ -368,7 +389,7 @@ function attachHandlers(bot) {
          //delete active subscriptions
          case 'stake_unsubscribe':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used stake_unsubscribe (Unsubsctibe From Active Subscriptions) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used stake_unsubscribe (Unsubsctibe From Active Subscriptions)`,
             )
 
             const valNameForUnsubscribe = callbackQuery.data.split(':')[1] //get second value of split it should be val name
@@ -397,8 +418,9 @@ function attachHandlers(bot) {
          //subscribe back button
          case 'back_button':
             logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used back_button (Back Button for Subscribe) callback`,
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used back_button (Back Button To Subscribe Menu)`,
             )
+
             waitingForValidatorNameForWsConnection.set(chatId, { status: false })
 
             bot.editMessageText('Subscribe to stake events. Choose event.', {
@@ -413,6 +435,10 @@ function attachHandlers(bot) {
 
          //when user choosen to save validator name for future requests
          case 'save_val_name':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used save_val_name (Save Name to History)`,
+            )
+
             const valNameForSave = callbackQuery.data.split(':')[1]
 
             if (listOfAddedValidatorNames.has(chatId)) {
@@ -462,9 +488,7 @@ function attachHandlers(bot) {
             break
 
          case 'main_menu':
-            logger.info(
-               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Meny) callback`,
-            )
+            logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Menu)`)
 
             bot.deleteMessage(chatId, msgId)
                .then(() => {
@@ -474,7 +498,7 @@ function attachHandlers(bot) {
                      },
                   }).then((message) => {
                      bot.deleteMessage(chatId, message.message_id)
-                     bot.sendMessage(chatId, 'Choose the button:', {
+                     bot.sendMessage(chatId, 'Choose a button:', {
                         reply_markup: callbackButtonForStartCommand(),
                      }).then(() => {
                         bot.answerCallbackQuery(callbackQuery.id)
@@ -484,6 +508,26 @@ function attachHandlers(bot) {
                .catch((error) => {
                   logger.error('main_menu Error:', error)
                })
+
+            break
+
+         case 'show_each_pool':
+            logger.info(
+               `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called show_each_pool (Show Each Pool)`,
+            )
+            //split callback data for get validator name
+            const validatorName = callbackQuery.data.split(':')[1]
+
+            showCurrentState(validatorName)
+               .then(async (resp) => {
+                  const validatorAddress = resp.suiAddress
+                  const { poolsMessage } = await handleStakedSuiObjectsByName(validatorAddress)
+
+                  await bot.sendMessage(chatId, `${validatorName} reward pools:\n${poolsMessage}`)
+                  bot.answerCallbackQuery(callbackQuery.id)
+                  logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
+               })
+               .catch(() => {})
 
             break
 

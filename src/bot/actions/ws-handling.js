@@ -128,7 +128,7 @@ async function handleSubscruptions(bot, chatId) {
                )
                if (isCacheHasEvent) {
                   subscription.ws = null
-                  console.log('Connection closed. Reopening...')
+                  logger.warn('Web Socket connection closed. Reopening...')
                   setTimeout(() => {
                      opensWs(subscription, bot, chatId)
                   }, 1000)
@@ -147,12 +147,17 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
    })
 
    if (index !== -1) {
+      //get data by index
       const address = userSubscriptions[chatId][index].address
       const ws = userSubscriptions[chatId][index].ws
 
+      //remove from cache
       await userSubscriptions[chatId].splice(index, 1)
 
+      //close connection it will call reconnect but won't success because the subscription has been removed from cache
       ws.close()
+
+      logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
    }
 }
 
