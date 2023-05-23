@@ -41,13 +41,8 @@ async function createWebSocketConnection(validatorAddress, type) {
 
       setInterval(() => {
          ws.ping()
-      }, 35000)
+      }, 5000)
    })
-
-   //when we get msg
-   // ws.on('message', function incoming(data) {
-   //    messageHandler(data) //return data to callback function
-   // })
 
    //when we get error
    ws.on('error', function error(err) {

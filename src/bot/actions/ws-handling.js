@@ -87,7 +87,7 @@ async function handleInitRestorSubscriptions(bot) {
                      return handleSaveSubscriptionToCache(chatId, valAddress, valName, type) //save subscriptions data to cache
                   }),
                ).then(() => {
-                  handleSubscruptions(bot, chatId) //restor ws connections whe subscriptions ware saved to cache
+                  handleSubscruptions(bot, chatId) //restor ws connections when subscriptions ware saved to cache
                })
             }
          }
@@ -166,7 +166,7 @@ async function handleSubscruptions(bot, chatId) {
                )
                if (isCacheHasEvent) {
                   subscription.ws = null
-                  console.log('Connection closed. Reopening...')
+                  logger.warn('Web Socket connection closed. Reopening...')
                   setTimeout(() => {
                      opensWs(subscription, bot, chatId)
                   }, 1000)
@@ -221,7 +221,7 @@ async function handleDropSubscriptionFromDB(chatId, validatorName, type, address
 
       logger.info(`Data: ${JSON.stringify(subscribeValue)} deleted from db ${chatId}`)
    } catch (error) {
-      logger.error(`Error save to db: ${error.message}`)
+      logger.error(`Error drop from db: ${error.message}`)
    }
 }
 
@@ -231,15 +231,20 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
    })
 
    if (index !== -1) {
+      //get data by index
       const address = userSubscriptions[chatId][index].address
       const ws = userSubscriptions[chatId][index].ws
 
+      //remove from cache
       await userSubscriptions[chatId].splice(index, 1)
 
+      //close connection it will call reconnect but won't success because the subscription has been removed from cache
       ws.close()
 
       //drop subscriptions from db
       handleDropSubscriptionFromDB(chatId, valName, eventsType, address)
+
+      logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
    }
 }
 
