@@ -45,6 +45,9 @@ const messageHandler = (bot, chatId, subscription, data) => {
       logger.warn(
          `${valName} type: ${subscription.type} Restore subscriptions inappropriate response from ws connection:`,
       )
+
+      subscription.subscribeId = parsedData.result //add subscription id to suscription object for future request to unsubscribe
+
       console.log(parsedData)
       return
    }
@@ -56,7 +59,9 @@ const messageHandler = (bot, chatId, subscription, data) => {
    bot.sendMessage(
       chatId,
       ` ${
-         type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
+         type === '0x0000000000000000000000000000000000000000000000000000000000000003::validator::StakingRequestEvent'
+            ? '➕ Staked'
+            : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
       } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
    )
 }
@@ -65,6 +70,7 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
    if (!userSubscriptions[chatId]) {
       userSubscriptions[chatId] = [] //if current chat id doesn't exist init empty array for objects with subscribe data
    }
+
    const isCacheHasEvent = userSubscriptions[chatId].find(
       (subscriptionObject) => subscriptionObject.name === validatorName && subscriptionObject.type === type,
    )
@@ -150,12 +156,13 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
       //get data by index
       const address = userSubscriptions[chatId][index].address
       const ws = userSubscriptions[chatId][index].ws
+      const subscriptionId = userSubscriptions[chatId][index].subscribeId
 
       //remove from cache
       await userSubscriptions[chatId].splice(index, 1)
 
-      //close connection it will call reconnect but won't success because the subscription has been removed from cache
-      ws.close()
+      //send unsubscribe requests with id of subscription
+      ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
 
       logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
    }
