@@ -108,15 +108,15 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
           const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
           const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
           totalTokens += reducedPrincipal
-          return `ID: ${id},Tokens: ${formattedPrincipal}`
+
+          bot.sendMessage(chatId, `Your reward pools:\nID: ${id},Tokens: ${formattedPrincipal}`)
         })
 
         infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
 
-        const poolsMessage = infoStrings.join('\n')
         const inlineKeyboard = valWithdrawKeyboard()
 
-        bot.sendMessage(chatId, `Your reward pools:\n${poolsMessage}`, {
+        bot.sendMessage(chatId, `Total tokens: ${totalTokens.toFixed(2)}`, {
           reply_markup: inlineKeyboard,
           one_time_keyboard: true,
         })
@@ -160,43 +160,29 @@ async function handleStakedSuiObjectsByName(address) {
 
 async function handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId) {
   bot.sendMessage(chatId, 'Sent request. Wait a moment')
-  const result = await signerHelper.withdrawRewardsFromPoolId(stakedPoolId)
+  const result = await signerHelper.withdrawRewardsFromPoolId([stakedPoolId])
   return result
 }
 
 async function handleWithdrawAllRewards(signerHelper) {
-  const digestArray = [] //array of withdraw from pool digests
-  const failObjectIDs = [] //map of unsuccesses digests key is pool id
-
   try {
     const response = await signerHelper.getStakingPoolIdObjects()
+
     const filteredObjects = response.data
       .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
       .map((item) => item.data)
 
+    const arrayOfObjects = []
+
     for (const obj of filteredObjects) {
       const stakedPoolId = obj.objectId
-      const resp = await signerHelper.withdrawRewardsFromPoolId(stakedPoolId)
-      if (resp.digest) {
-        digestArray.push(resp.digest)
-      } else {
-        failObjectIDs.push(obj.objectId)
-      }
+
+      arrayOfObjects.push(stakedPoolId)
     }
 
-    if (failObjectIDs.length > 0) {
-      failObjectIDs.unshift("Didn' withdraw pools for some reasons:")
-      const poolsMessage = failObjectIDs.join('\n')
-
-      return poolsMessage
-    } else if (digestArray.length > 0) {
-      digestArray.unshift('Withdraw digests:')
-      const poolsMessage = digestArray.join('\n')
-
-      return poolsMessage
-    }
+    const resp = await signerHelper.withdrawRewardsFromPoolId(arrayOfObjects)
+    return resp.digest
   } catch (error) {
-    console.log(error)
     return 'Withdrawing error'
   }
 }
