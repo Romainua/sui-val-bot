@@ -11,6 +11,8 @@ const messageHandler = (bot, chatId, subscription, data) => {
   const parsedData = JSON.parse(data) //convert answer to json
 
   const type = parsedData?.params?.result?.type
+  const epoch = parsedData?.params?.result?.parsedJson?.epoch || parsedData?.params?.result?.parsedJson?.unstaking_epoch
+
   let tx //tx digest
   let tokensAmount //amount for unstake or stake
 
@@ -56,12 +58,18 @@ const messageHandler = (bot, chatId, subscription, data) => {
   const reducedAmount = Number(tokensAmount) / 1e9
   const formattedPrincipal = Number(reducedAmount).toFixed(2)
 
-  bot.sendMessage(
-    chatId,
-    ` ${
-      type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
-    } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
-  )
+  const epochChangeSender = `0x0000000000000000000000000000000000000000000000000000000000000000`
+
+  if (parsedData?.params?.result?.sender === epochChangeSender) {
+    bot.sendMessage(chatId, `Validator(${valName}) rewards by ${epoch} epoch. \nAmount: ${formattedPrincipal}`)
+  } else {
+    bot.sendMessage(
+      chatId,
+      ` ${
+        type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
+      } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
+    )
+  }
 }
 
 async function handleInitSubscription(bot, chatId, valAddress, validatorName, type) {
