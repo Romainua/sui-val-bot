@@ -61,8 +61,12 @@ const messageHandler = (bot, chatId, subscription, data) => {
 
   const epochChangeSender = `0x0000000000000000000000000000000000000000000000000000000000000000`
 
+  //if sender is epoch changing
   if (parsedData?.params?.result?.sender === epochChangeSender) {
-    bot.sendMessage(chatId, `Validator(${valName}) rewards by ${epoch} epoch. \nAmount: ${formattedPrincipal}`)
+    bot.sendMessage(
+      chatId,
+      `Epoch changed. A validator reward:\n- name: ${valName}\n- epoch: ${epoch}\n- amount: ${formattedPrincipal}`,
+    )
   } else {
     bot.sendMessage(
       chatId,
