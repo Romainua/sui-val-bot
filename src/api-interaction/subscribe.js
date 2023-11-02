@@ -20,7 +20,7 @@ async function createWebSocketConnection(validatorAddress, type) {
         And: [
           {
             MoveEventField: {
-              path: 'validator_address',
+              path: '/validator_address',
               value: validatorAddress,
             },
           },
