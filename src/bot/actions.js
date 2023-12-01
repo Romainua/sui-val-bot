@@ -13,15 +13,9 @@ async function handleGetPrice(bot, chatId) {
   try {
     const { selectedValidators, currentVotingPower } = await getGasPrice()
     const formattedValidatorsInfo = selectedValidators
-      .map(
-        ({ name, nextEpochGasPrice, votingPower }, index) =>
-          `${index + 1} ${name}: ${nextEpochGasPrice}, vp – ${votingPower}`,
-      )
+      .map(({ name, nextEpochGasPrice, votingPower }, index) => `${index + 1} ${name}: ${nextEpochGasPrice}, vp – ${votingPower}`)
       .join('\n')
-    bot.sendMessage(
-      chatId,
-      `Next epoch gas price Total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`,
-    )
+    bot.sendMessage(chatId, `Next epoch gas price Total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`)
   } catch (error) {
     bot.sendMessage(chatId, 'Error: ' + error.message)
   }
@@ -36,6 +30,7 @@ async function handleSetCommission(commissionRate, objectOperationCap, signerHel
 
   if (addressThatAdded === addressMainOwnerCapObject) {
     const response = await signerHelper.setCommissionRate(commissionRate)
+
     return response
   } else {
     return 'Looks like you added address with Cap Object but, only validator address can set commission.'
@@ -72,6 +67,7 @@ async function handleSetKey(bot, chatId, key) {
     await signerHelper.initSigner()
     const signer = await signerHelper.getSigner()
     const address = await signerHelper.getAddress()
+
     const objectOperationCap = await signerHelper.getOperationCapId()
 
     return { signer, address, signerHelper, objectOperationCap }
@@ -96,27 +92,31 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
     await bot.sendMessage(chatId, 'Sent request. Wait a moment')
     bot.answerCallbackQuery(callbackQuery.id)
 
-    signerHelper.getStakingPoolIdObjects().then((response) => {
-      const filteredObjects = response.data
-        .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
-        .map((item) => item.data)
+    signerHelper.getStakingPoolIdObjects().then(async (response) => {
+      if (response.data.length > 0) {
+        const filteredObjects = response.data
+          .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
+          .map((item) => item.data)
 
-      if (filteredObjects.length > 0) {
-        let totalTokens = 0
-        const infoStrings = filteredObjects.map((obj) => {
+        const totalTokens = filteredObjects.reduce((acc, curr) => {
+          const principal = Number(curr.content.fields.principal) / 1e9
+          const formattedPrincipal = Number(principal).toFixed(2)
+          return Number(acc) + +formattedPrincipal
+        }, 0)
+
+        const sendMsgPromises = filteredObjects.map(async (obj) => {
           const id = obj.content.fields.id.id
           const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
           const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
-          totalTokens += reducedPrincipal
 
-          bot.sendMessage(chatId, `Your reward pools:\nID: ${id},Tokens: ${formattedPrincipal}`)
+          return await bot.sendMessage(chatId, `ID: ${id} amount: ${formattedPrincipal}`)
         })
 
-        infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
+        await Promise.all(sendMsgPromises)
 
         const inlineKeyboard = valWithdrawKeyboard()
 
-        bot.sendMessage(chatId, `Total tokens: ${totalTokens.toFixed(2)}`, {
+        bot.sendMessage(chatId, `Total tokens: ${totalTokens}`, {
           reply_markup: inlineKeyboard,
           one_time_keyboard: true,
         })
@@ -180,10 +180,10 @@ async function handleWithdrawAllRewards(signerHelper) {
       arrayOfObjects.push(stakedPoolId)
     }
 
-    const resp = await signerHelper.withdrawRewardsFromPoolId(arrayOfObjects)
+    const resp = 'await signerHelper.withdrawRewardsFromPoolId(arrayOfObjects)'
     return resp.digest
   } catch (error) {
-    return 'Withdrawing error'
+    return error
   }
 }
 
@@ -453,6 +453,14 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
   })
 }
 
+async function handleTokensBalance(signerHelper) {
+  const balance = await signerHelper.getBalance()
+  return (Number.parseInt(balance.totalBalance) / 1e9).toFixed(2)
+}
+async function handleSendTokens(amount, recipient, signerHelper) {
+  return await signerHelper.sendTokens(amount, recipient)
+}
+
 export {
   handleGetPrice,
   handleValidatorInfo,
@@ -469,4 +477,6 @@ export {
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
   handleUnstakeWsSubscribe,
+  handleTokensBalance,
+  handleSendTokens,
 }
