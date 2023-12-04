@@ -589,13 +589,12 @@ function attachHandlers(bot) {
         const isValidatorAdd = signerAddrMap.get(chatId)
 
         if (isValidatorAdd) {
-          bot.deleteMessage(chatId, msgId).then(() => {
-            bot.sendMessage(chatId, '❗ Validator have been added.', {
-              reply_markup: callbackButtonForStartCommand(),
-            })
+          bot.sendMessage(chatId, 'You have already added validator❗').then(() => {
+            bot.answerCallbackQuery(callbackQuery.id)
           })
           return
         }
+
         bot.deleteMessage(chatId, msg.message_id).then(() => {
           bot
             .sendMessage(chatId, 'Please input the privat key:', {
@@ -809,10 +808,6 @@ function attachHandlers(bot) {
         logger.info(
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used back_button_for_val_control (Back Button for Validator Control) callback`,
         )
-        const listOfWaiting = [waitingForGasPrice, waitingForCommissionRate, waitingForPoolID]
-        listOfWaiting.forEach((map) => {
-          map.clear()
-        })
 
         bot
           .editMessageText('🕹 Validator control menu. Firstly Add Validator.', {
@@ -827,18 +822,6 @@ function attachHandlers(bot) {
         logger.info(
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called withdraw_all (Withdraw All Rewards) callback`,
         )
-
-        bot
-          .editMessageReplyMarkup(
-            { inline_keyboard: [] },
-            {
-              chat_id: chatId,
-              message_id: callbackQuery.message.message_id,
-            },
-          )
-          .catch((error) => {
-            console.error('Error updating keyboard:', error)
-          })
 
         if (validatorSignerAddress) {
           bot.sendMessage(chatId, 'Sent request. Withdrawing all rewards...')
@@ -865,23 +848,15 @@ function attachHandlers(bot) {
         )
 
         bot
-          .editMessageReplyMarkup(
-            { inline_keyboard: [] },
-            {
-              chat_id: chatId,
-              message_id: callbackQuery.message.message_id,
-            },
-          )
-          .catch((error) => {
-            console.error('Error updating keyboard:', error)
+          .editMessageText('Input Pool ID:', {
+            chat_id: chatId,
+            message_id: msg.message_id,
+            reply_markup: { inline_keyboard: backReplyForControlValidator() },
           })
-        waitingForPoolID.set(chatId, true)
-
-        await bot.sendMessage(chatId, 'Input Pool ID or /menu to return :', {
-          reply_markup: { inline_keyboard: backReplyForControlValidator() },
-        })
-        bot.deleteMessage(chatId, msgId)
-        bot.answerCallbackQuery(callbackQuery.id)
+          .then(() => {
+            bot.answerCallbackQuery(callbackQuery.id)
+            waitingForPoolID.set(chatId, true)
+          })
         break
 
       case 'get_balance':
@@ -969,31 +944,13 @@ function attachHandlers(bot) {
 
       case 'main_menu':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Menu) callback`)
-
         bot
-          .deleteMessage(chatId, msgId)
-          .then(() => {
-            bot
-              .sendMessage(chatId, 'waiting...', {
-                reply_markup: {
-                  remove_keyboard: true,
-                },
-              })
-              .then((message) => {
-                bot.deleteMessage(chatId, message.message_id)
-                bot
-                  .sendMessage(chatId, 'Choose the button:', {
-                    reply_markup: callbackButtonForStartCommand(),
-                  })
-                  .then(() => {
-                    bot.answerCallbackQuery(callbackQuery.id)
-                  })
-              })
+          .editMessageText('🕹 Main Manu. Choose one of the buttons:', {
+            chat_id: chatId,
+            message_id: msg.message_id,
+            reply_markup: callbackButtonForStartCommand(),
           })
-          .catch((error) => {
-            logger.error('main_menu Error:', error)
-          })
-
+          .then(() => bot.answerCallbackQuery(callbackQuery.id))
         break
 
       case 'confirm_tx':

@@ -11,6 +11,7 @@ cap operations:
 - `request_set_commission_rate`
 - `request_withdraw_stake`
 - `transfer sui`
+
   not cap operations:
 
 - `get validator System State info`

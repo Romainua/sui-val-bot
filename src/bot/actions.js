@@ -107,16 +107,17 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
           const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
           const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
 
-          return await bot.sendMessage(chatId, `ID: ${id} amount: ${formattedPrincipal}`)
+          return await bot.sendMessage(chatId, `ID: ${id} amount: *${formattedPrincipal}*`, {
+            parse_mode: 'Markdown',
+          })
         })
 
         await Promise.all(sendMsgPromises)
 
-        const inlineKeyboard = valWithdrawKeyboard()
-
-        bot.sendMessage(chatId, `Total tokens: ${totalTokens.toFixed(2)}`, {
-          reply_markup: inlineKeyboard,
+        bot.sendMessage(chatId, `Total tokens: *${totalTokens.toFixed(2)} SUI*`, {
+          reply_markup: valWithdrawKeyboard(),
           one_time_keyboard: true,
+          parse_mode: 'Markdown',
         })
       } else {
         bot.sendMessage(chatId, `No any staked object`)
@@ -147,7 +148,7 @@ async function handleStakedSuiObjectsByName(address) {
       return `ID: ${id} amount: *${formattedPrincipal}*`
     })
 
-    infoStrings.push(`Total tokens: *${totalTokens.toFixed(2)}*`)
+    infoStrings.push(`Total tokens: *${totalTokens.toFixed(2)} SUI*`)
     const poolsMessage = infoStrings.join('\n')
 
     return poolsMessage
