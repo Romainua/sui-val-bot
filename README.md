@@ -7,53 +7,59 @@ The bot is manager of your validator. Bot uses:
 
 cap operations:
 
--  `request_set_gas_price`
--  `request_set_commission_rate`
--  `request_withdraw_stake`
+- `request_set_gas_price`
+- `request_set_commission_rate`
+- `request_withdraw_stake`
+- `transfer sui`
+  not cap operations:
 
-not cap operations:
-
--  `get validator System State info`
-
-_Save users data to db_
+- `get validator System State info`
 
 ## Bot capabilities:
 
--  fetch gas price for next epoch by 2/3 (6666) of validators
--  set gas for next epoch
--  set commission rate for next epoch
--  add validator in bot
--  delete validator from bot
--  show added validator info (System State)
--  show another validator by name
--  withdraw rewards (from one pool or all)
--  show validator rewards by name
--  save user data and chat id to db
--  subscribe to stake/unstake events
+- fetch gas price for next epoch by 2/3 (6666) of validators
+- set gas for next epoch
+- set commission rate for next epoch
+- add validator in the bot
+- delete validator from the bot
+- show added validator info (System State)
+- show another validator by name
+- withdraw rewards (from one pool or all)
+- send SUI to another address
+- check SUI balance
+- show validator rewards by name
+- subscribe to stake/unstake events
 
-You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
-
-**Please do not send your private key! Otherwise, deploy your own bot**
+You can play with bot on mainnet (without cap operations) [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
 
 ## Deploying
 
 1. Cloning this repo
-2. Run your PostgresSQL server (you can use Amazon RDS)
-3. Creating .env file into sui-val-bot dir with following info:
+2. Creating .env file into sui-val-bot dir with following info:
 
 ```
 TELEGRAM_BOT_TOKEN=<SOME_TOKEN>
 apiUrl=https://fullnode.testnet.sui.io
-WEBSOCKET_apiUrl=wss://fullnode.mainnet.sui.io
-
-#data for connect db
-PGHOST=
-PGUSER=
-PGPASSWORD=
-PGDATABASE=
+WEBSOCKET_apiUrl=wss://fullnode.testnet.sui.io
 ```
 
-recommended to use the endpoint `https://fullnode.testnet.sui.io` and `wss://fullnode.mainnet.sui.io`
+recommended to use the endpoint `https://fullnode.testnet.sui.io` and `wss://fullnode.testnet.sui.io`
+
+### Build manually
+
+3. Install all dependencies.
+
+```
+npm install
+```
+
+4. Start the bot.
+
+```
+npm run start
+```
+
+### Use Docker
 
 3. For this step install docker. Build docker image.
 

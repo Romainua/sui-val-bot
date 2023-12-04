@@ -105,32 +105,6 @@ class SignerHelper {
     }
   }
 
-  async getTransaction(digestArray) {
-    // const txn = await this.provider.getTransactionBlock({
-    //    digest: 'AoQ3pb6pZRJoSefipRHBECeRkVdgYog1xU9Q7DZGbE2w',
-    //    // only fetch the effects field
-    //    options: {
-    //       showEffects: true,
-    //    },
-    // })
-
-    // You can also fetch multiple transactions in one batch request
-    const txns = await this.provider.multiGetTransactionBlocks({
-      digests: digestArray,
-      // fetch both the input transaction data as well as effects
-      options: {
-        showEffects: true,
-        showInput: true,
-        showEvents: true,
-        showObjectChanges: true,
-        showBalanceChanges: true,
-      },
-    })
-    //console.log(txn.effects.status)
-    //return txns
-    console.log(txns)
-  }
-
   async getStakingPoolIdObjects() {
     // If coin type is not specified, it defaults to 0x2::sui::SUI
     const address = await this.getAddress()
