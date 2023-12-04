@@ -88,15 +88,18 @@ class SignerHelper {
   async sendTokens(amount, recipient) {
     try {
       const tx = new TransactionBlock()
+
       const [coin] = tx.splitCoins(tx.gas, [Number.parseInt(amount) * Number(MIST_PER_SUI)])
 
       tx.transferObjects([coin], recipient)
+
       const result = await this.client.signAndExecuteTransactionBlock({
         signer: this.signer,
         transactionBlock: tx,
+        options: { showEffects: true },
       })
 
-      return result.digest
+      return result
     } catch (err) {
       return err
     }
@@ -173,14 +176,13 @@ class SignerHelper {
 }
 
 async function getStakingPoolIdObjectsByName(address) {
-  const apiUrl = process.env.apiUrl
-  const connection = new Connection({ fullnode: apiUrl })
-  const provider = new JsonRpcProvider(connection)
+  const client = new SuiClient({ url: process.env.apiUrl })
 
-  const stakedSuiObjects = await provider.getOwnedObjects({
+  const stakedSuiObjects = await client.getOwnedObjects({
     owner: address,
     options: { showType: true, showContent: true },
   })
+
   return stakedSuiObjects
 }
 

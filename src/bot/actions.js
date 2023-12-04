@@ -5,7 +5,7 @@ import { getStakingPoolIdObjectsByName } from '../api-interaction/validator-cap.
 import ClientDb from '../db-interaction/db-hendlers.js'
 import logger from './handle-logs/logger.js'
 import { createWebSocketConnection, createUnstakeWebSocketConnection } from '../api-interaction/subscribe.js'
-import { unsubscribeCallBackButton, subscribeKeyBoard, callbackButtonForStartCommand } from './keyboards/keyboard.js'
+import { unsubscribeCallBackButton, subscribeKeyBoard, validatroControlKeyboard } from './keyboards/keyboard.js'
 
 const userSubscriptions = {} //list of all active Subscriptions
 
@@ -86,9 +86,7 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
 
   const validatroData = await showCurrentState(objectOperationCap)
 
-  const addressMainOwnerCapObject = validatroData.suiAddress
-
-  if (addressThatAdded === addressMainOwnerCapObject) {
+  if (addressThatAdded === validatroData?.suiAddress) {
     await bot.sendMessage(chatId, 'Sent request. Wait a moment')
     bot.answerCallbackQuery(callbackQuery.id)
 
@@ -116,7 +114,7 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
 
         const inlineKeyboard = valWithdrawKeyboard()
 
-        bot.sendMessage(chatId, `Total tokens: ${totalTokens}`, {
+        bot.sendMessage(chatId, `Total tokens: ${totalTokens.toFixed(2)}`, {
           reply_markup: inlineKeyboard,
           one_time_keyboard: true,
         })
@@ -146,10 +144,10 @@ async function handleStakedSuiObjectsByName(address) {
       const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
       totalTokens += reducedPrincipal
 
-      return `ID: ${id},Tokens: ${formattedPrincipal}`
+      return `ID: ${id} amount: *${formattedPrincipal}*`
     })
 
-    infoStrings.push(`Total tokens: ${totalTokens.toFixed(2)}`)
+    infoStrings.push(`Total tokens: *${totalTokens.toFixed(2)}*`)
     const poolsMessage = infoStrings.join('\n')
 
     return poolsMessage
@@ -179,8 +177,8 @@ async function handleWithdrawAllRewards(signerHelper) {
 
       arrayOfObjects.push(stakedPoolId)
     }
+    const resp = await signerHelper.withdrawRewardsFromPoolId(arrayOfObjects)
 
-    const resp = 'await signerHelper.withdrawRewardsFromPoolId(arrayOfObjects)'
     return resp.digest
   } catch (error) {
     return error
@@ -205,50 +203,6 @@ async function handleStartCommand(chatId, msg) {
   } catch (error) {
     logger.error(`Error save to db: ${error.message}`)
   }
-}
-
-//notify when bot has been updated
-async function handleNotifyForUpdateBot(bot) {
-  const dataBaseClient = new ClientDb()
-
-  await dataBaseClient.connect()
-  await dataBaseClient.createTableIfNotExists()
-
-  dataBaseClient
-    .getAllData()
-    .then(async (usersData) => {
-      await dataBaseClient.end()
-
-      for (let dataUser of usersData) {
-        const chatId = dataUser.id
-        const username = dataUser.data.first_name
-
-        bot.sendMessage(
-          chatId,
-          `Hello, ${username} bot has been updated. Check latest updates https://github.com/Romainua/sui-val-bot \nI would recommend deploy your own bot (follow the README on repository), then you can use bot safely for: \n- set commission rate for next epoch \n- set gas price for next epoch \n- withdraw rewards from pool or all \n\n*Added new function:*\n - decrease ping time for ws (there was close connection issue)\n - added history of request\n - minor changes\n Use /start \n\n_You do not need to re-subscribe to events, all subscription have been restored._`,
-          {
-            reply_markup: callbackButtonForStartCommand(),
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true,
-          },
-        )
-        const subscribe_data = dataUser.subscribe_data
-        //restore subscribe from db
-        subscribe_data.length > 0
-          ? subscribe_data.forEach((subsctibe) => {
-              const valAddress = subsctibe.address
-              const valName = subsctibe.name
-              const type = subsctibe.type
-              type == 'delegate'
-                ? handleStakeWsSubscribe(bot, chatId, valAddress, valName)
-                : handleUnstakeWsSubscribe(bot, chatId, valAddress, valName)
-            })
-          : {}
-      }
-    })
-    .catch((err) => {
-      logger.error(`db doesn't have data: ${err}`)
-    })
 }
 
 async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msgId) {
@@ -457,8 +411,22 @@ async function handleTokensBalance(signerHelper) {
   const balance = await signerHelper.getBalance()
   return (Number.parseInt(balance.totalBalance) / 1e9).toFixed(2)
 }
-async function handleSendTokens(amount, recipient, signerHelper) {
-  return await signerHelper.sendTokens(amount, recipient)
+async function handleSendTokens(amount, recipient, signerHelper, bot, chatId) {
+  const { digest, effects } = await signerHelper.sendTokens(amount, recipient)
+
+  if (effects.status.status === 'success') {
+    bot.sendMessage(chatId, `✅ Have sent tokens, tx: https://suiexplorer.com/txblock/${digest}`).then(
+      bot.sendMessage(chatId, `🕹 Validator control menu`, {
+        reply_markup: validatroControlKeyboard(),
+      }),
+    )
+  } else {
+    bot.sendMessage(chatId, `Error to send tokens: ${effects.status.error}`).then(
+      bot.sendMessage(chatId, `🕹 Validator control menu`, {
+        reply_markup: validatroControlKeyboard(),
+      }),
+    )
+  }
 }
 
 export {
@@ -472,7 +440,6 @@ export {
   handleStakedSuiObjectsByName,
   handleSetCommission,
   handleStartCommand,
-  handleNotifyForUpdateBot,
   handleStakeWsSubscribe,
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,

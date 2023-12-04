@@ -8,7 +8,6 @@ import {
   handleStakedSuiObjectsByName,
   handleSetCommission,
   handleStartCommand,
-  handleNotifyForUpdateBot,
   handleStakeWsSubscribe,
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
@@ -42,16 +41,13 @@ const listOfAddedValidatorNames = new Map() //here saving validator name for fut
 const waitingForTokensAmount = new Map() //here saving total tokens to send
 const waitingRecipientOfTokens = new Map() //here saving recipient of tokens
 
-const txData = {
-  recipient: null,
-  amount: null,
-}
-
 function attachHandlers(bot) {
-  //send msgs to users when bot have been updated
-  handleNotifyForUpdateBot(bot)
-
   const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/valcontrol', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
+
+  const txData = {
+    recipient: null,
+    amount: null,
+  }
 
   //handling custom messages, input name, key, gas, commission...
   bot.on('message', (msg) => {
@@ -296,13 +292,14 @@ function attachHandlers(bot) {
                 reply_markup: {
                   remove_keyboard: true,
                 },
+                parse_mode: 'Markdown',
               })
               askSaveToHistory(resp.name, waitingValidatorNameForRewards)
 
               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
             })
 
-            .catch(() => {
+            .catch((err) => {
               bot.sendMessage(chatId, "❗ Can't find validator", { reply_markup: backReplyForMainMenu() })
               logger.warn(`User ${msg.from.username} (${msg.from.id}) can't find validator ${valName}`)
             })
@@ -378,12 +375,15 @@ function attachHandlers(bot) {
 
   bot.onText(new RegExp('/start'), (msg) => {
     const chatId = msg.chat.id
+
     bot.sendMessage(
       chatId,
       "Welcome! I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
       { reply_markup: callbackButtonForStartCommand() },
     )
+
     handleStartCommand(chatId, msg)
+
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
   })
 
@@ -611,7 +611,7 @@ function attachHandlers(bot) {
             bot.answerCallbackQuery(callbackQuery.id)
           })
         } else {
-          bot.sendMessage(chatId, 'Firstly Add Validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
+          bot.sendMessage(chatId, 'Firstly Add Validator❗️').then(() => bot.answerCallbackQuery(callbackQuery.id))
           logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
         }
 
@@ -632,8 +632,8 @@ function attachHandlers(bot) {
 
           waitingForGasPrice.set(chatId, true)
         } else {
-          bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
-          logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
+          bot.sendMessage(chatId, 'Firstly Add Validator❗️').then(() => bot.answerCallbackQuery(callbackQuery.id))
+          logger.warn(`User ${callbackQuery.from.username} ${callbackQuery.from.id}) firstly add a validator`)
         }
         break
 
@@ -654,7 +654,7 @@ function attachHandlers(bot) {
 
           waitingForCommissionRate.set(chatId, true)
         } else {
-          bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
+          bot.sendMessage(chatId, 'Firstly Add Validator❗️').then(() => bot.answerCallbackQuery(callbackQuery.id))
           logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
         }
         break
@@ -667,9 +667,10 @@ function attachHandlers(bot) {
         if (signerAddrMap.has(chatId)) {
           const validatorSignerAddress = signerAddrMap.get(chatId)
           const { signerHelper, objectOperationCap } = validatorSignerAddress
+
           handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperationCap, signerHelper)
         } else {
-          bot.sendMessage(chatId, 'Firstly add a validator').then(() => bot.answerCallbackQuery(callbackQuery.id))
+          bot.sendMessage(chatId, 'Firstly Add Validator❗️').then(() => bot.answerCallbackQuery(callbackQuery.id))
           logger.warn(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) firstly add a validator`)
         }
         break
@@ -840,11 +841,7 @@ function attachHandlers(bot) {
             bot.sendMessage(chatId, `Error to withdraw: ${result}`)
           }
         } else {
-          bot
-            .sendMessage(chatId, 'Firstly Add Validator❗️', {
-              reply_markup: callbackButtonForStartCommand(),
-            })
-            .then(() => bot.answerCallbackQuery(callbackQuery.id))
+          bot.sendMessage(chatId, 'Firstly Add Validator❗️').then(() => bot.answerCallbackQuery(callbackQuery.id))
         }
 
         break
@@ -884,11 +881,7 @@ function attachHandlers(bot) {
 
           bot.sendMessage(chatId, `Balance: ${balance} SUI`)
         } else {
-          bot
-            .sendMessage(chatId, 'Firstly Add Validator❗️', {
-              reply_markup: callbackButtonForStartCommand(),
-            })
-            .then(() => bot.answerCallbackQuery(callbackQuery.id))
+          bot.sendMessage(chatId, 'Firstly Add Validator❗️').then(() => bot.answerCallbackQuery(callbackQuery.id))
         }
 
         break
@@ -907,11 +900,7 @@ function attachHandlers(bot) {
             })
           waitingForTokensAmount.set(chatId, true)
         } else {
-          bot
-            .sendMessage(chatId, 'Firstly Add Validator❗️', {
-              reply_markup: callbackButtonForStartCommand(),
-            })
-            .then(() => bot.answerCallbackQuery(callbackQuery.id))
+          bot.sendMessage(chatId, 'Firstly Add Validator❗️').then(() => bot.answerCallbackQuery(callbackQuery.id))
           waitingForTokensAmount.set(chatId, false)
         }
         break
@@ -1001,12 +990,7 @@ function attachHandlers(bot) {
           bot.deleteMessage(chatId, msgId)
 
           bot.sendMessage(chatId, 'Sending tx...').then(
-            handleSendTokens(txData.amount, txData.recipient, signerHelper).then((tx) => {
-              bot.sendMessage(chatId, `✅ Have sent tokens, tx: https://suiexplorer.com/txblock/${tx}`).then(
-                bot.sendMessage(chatId, `🕹 Validator control menu`, {
-                  reply_markup: validatroControlKeyboard(),
-                }),
-              )
+            handleSendTokens(txData.amount, txData.recipient, signerHelper, bot, chatId).then(() => {
               waitingForValidatorName.set(chatId, false)
             }),
           )
@@ -1043,6 +1027,7 @@ function attachHandlers(bot) {
             logger.error('main_menu Error:', error)
           })
         break
+
       default:
         bot.sendMessage(chatId, `Unknown command`)
         break
