@@ -40,14 +40,10 @@ const waitingForValidatorNameForWsConnection = new Map()
 const listOfAddedValidatorNames = new Map() //here saving validator name for future requests
 const waitingForTokensAmount = new Map() //here saving total tokens to send
 const waitingRecipientOfTokens = new Map() //here saving recipient of tokens
+const txsData = new Map()
 
 function attachHandlers(bot) {
   const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/valcontrol', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
-
-  const txData = {
-    recipient: null,
-    amount: null,
-  }
 
   //handling custom messages, input name, key, gas, commission...
   bot.on('message', (msg) => {
@@ -341,7 +337,15 @@ function attachHandlers(bot) {
     }
 
     if (waitingRecipientOfTokens.get(chatId)) {
-      LIST_OF_COMMANDS.includes(msg.text) ? waitingForTokensAmount.set(chatId, false) : (txData.recipient = msg.text)
+      const txData = txsData.get(chatId)
+
+      if (LIST_OF_COMMANDS.includes(msg.text)) {
+        waitingForTokensAmount.set(chatId, false)
+      } else {
+        txData.recipient = msg.text
+
+        console.log(txsData)
+      }
 
       bot.sendMessage(
         chatId,
@@ -354,12 +358,19 @@ function attachHandlers(bot) {
     }
 
     if (waitingForTokensAmount.get(chatId)) {
+      const txStructure = {
+        recipient: null,
+        amount: null,
+      }
       const amount = Number.parseInt(msg.text)
 
       if (LIST_OF_COMMANDS.includes(msg.text)) {
         waitingForTokensAmount.set(chatId, false)
       } else if (!isNaN(amount) && amount > 0) {
-        txData.amount = amount
+        txStructure.amount = amount
+
+        txsData.set(chatId, txStructure)
+
         waitingForTokensAmount.set(chatId, false)
 
         bot
@@ -575,7 +586,9 @@ function attachHandlers(bot) {
       case 'add_validator':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used  add_validator (Add Validator) сallback`)
 
-        if (signerAddrMap.size > 0) {
+        const isValidatorAdd = signerAddrMap.get(chatId)
+
+        if (isValidatorAdd) {
           bot.deleteMessage(chatId, msgId).then(() => {
             bot.sendMessage(chatId, '❗ Validator have been added.', {
               reply_markup: callbackButtonForStartCommand(),
@@ -989,6 +1002,8 @@ function attachHandlers(bot) {
 
           bot.deleteMessage(chatId, msgId)
 
+          const txData = txsData.get(chatId)
+
           bot.sendMessage(chatId, 'Sending tx...').then(
             handleSendTokens(txData.amount, txData.recipient, signerHelper, bot, chatId).then(() => {
               waitingForValidatorName.set(chatId, false)
@@ -1003,6 +1018,7 @@ function attachHandlers(bot) {
 
       case 'reject_tx':
         waitingForValidatorName.set(chatId, false)
+
         bot
           .deleteMessage(chatId, msgId)
           .then(() => {

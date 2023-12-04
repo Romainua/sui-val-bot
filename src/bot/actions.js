@@ -414,14 +414,14 @@ async function handleTokensBalance(signerHelper) {
 async function handleSendTokens(amount, recipient, signerHelper, bot, chatId) {
   const { digest, effects } = await signerHelper.sendTokens(amount, recipient)
 
-  if (effects.status.status === 'success') {
+  if (effects?.status?.status === 'success') {
     bot.sendMessage(chatId, `✅ Have sent tokens, tx: https://suiexplorer.com/txblock/${digest}`).then(
       bot.sendMessage(chatId, `🕹 Validator control menu`, {
         reply_markup: validatroControlKeyboard(),
       }),
     )
   } else {
-    bot.sendMessage(chatId, `Error to send tokens: ${effects.status.error}`).then(
+    bot.sendMessage(chatId, `Error to send tokens: ${effects?.status?.error}`).then(
       bot.sendMessage(chatId, `🕹 Validator control menu`, {
         reply_markup: validatroControlKeyboard(),
       }),
