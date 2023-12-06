@@ -7,7 +7,6 @@ import {
   handleWithdrawAllRewards,
   handleStakedSuiObjectsByName,
   handleSetCommission,
-  handleStartCommand,
   handleStakeWsSubscribe,
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
@@ -280,22 +279,22 @@ function attachHandlers(bot) {
             .then(async (resp) => {
               const validatorAddress = resp.suiAddress
 
-              bot.sendMessage(chatId, 'Sent request. Wait a moment')
+              const { totalAmount } = await handleStakedSuiObjectsByName(validatorAddress)
 
-              const listofStakedObjects = await handleStakedSuiObjectsByName(validatorAddress)
-
-              await bot.sendMessage(chatId, `${resp.name} reward pools:\n${listofStakedObjects}`, {
+              await bot.sendMessage(chatId, `Validator: *${resp.name}*\nTotal staked tokens: *${totalAmount} SUI*`, {
                 reply_markup: {
-                  remove_keyboard: true,
+                  inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]], //save val name to callback data will resotor it
                 },
                 parse_mode: 'Markdown',
               })
+
               askSaveToHistory(resp.name, waitingValidatorNameForRewards)
 
               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
             })
 
             .catch((err) => {
+              //console.log(err)
               bot.sendMessage(chatId, "❗ Can't find validator", { reply_markup: backReplyForMainMenu() })
               logger.warn(`User ${msg.from.username} (${msg.from.id}) can't find validator ${valName}`)
             })
@@ -343,13 +342,11 @@ function attachHandlers(bot) {
         waitingForTokensAmount.set(chatId, false)
       } else {
         txData.recipient = msg.text
-
-        console.log(txsData)
       }
 
       bot.sendMessage(
         chatId,
-        `Confirm tx data:\n\n🔹 Recipient: [${txData.recipient}](https://suiexplorer.com/address/${txData.recipient})\n🔹 Amount: *${txData.amount} SUI*\n\n❗️Be sure that data is corect❗️`,
+        `Confirm tx data:\n\n🔹 Recipient: [${txData.recipient}](https://suiexplorer.com/address/${txData.recipient})\n🔹 Amount: *${txData.amount} SUI*\n\n❗️Be sure that data is correct❗️`,
         {
           reply_markup: sendTxButtons(),
           parse_mode: 'Markdown',
@@ -392,8 +389,6 @@ function attachHandlers(bot) {
       "Welcome! I'm your manager of your validator. Choose a button to get infromation about validator or add own validator.",
       { reply_markup: callbackButtonForStartCommand() },
     )
-
-    handleStartCommand(chatId, msg)
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
   })
@@ -945,7 +940,7 @@ function attachHandlers(bot) {
       case 'main_menu':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Menu) callback`)
         bot
-          .editMessageText('🕹 Main Manu. Choose one of the buttons:', {
+          .editMessageText('🏘 Main Manu. Choose one of the buttons:', {
             chat_id: chatId,
             message_id: msg.message_id,
             reply_markup: callbackButtonForStartCommand(),
@@ -977,28 +972,37 @@ function attachHandlers(bot) {
         waitingForValidatorName.set(chatId, false)
 
         bot
-          .deleteMessage(chatId, msgId)
+          .editMessageText('🏘 Main Manu. Choose one of the buttons:', {
+            chat_id: chatId,
+            message_id: msg.message_id,
+            reply_markup: callbackButtonForStartCommand(),
+          })
           .then(() => {
-            bot
-              .sendMessage(chatId, 'waiting...', {
-                reply_markup: {
-                  remove_keyboard: true,
-                },
-              })
-              .then((message) => {
-                bot.deleteMessage(chatId, message.message_id)
-                bot
-                  .sendMessage(chatId, 'Choose the button:', {
-                    reply_markup: callbackButtonForStartCommand(),
-                  })
-                  .then(() => {
-                    bot.answerCallbackQuery(callbackQuery.id)
-                  })
-              })
+            bot.answerCallbackQuery(callbackQuery.id)
           })
-          .catch((error) => {
-            logger.error('main_menu Error:', error)
+
+        break
+
+      case 'show_each_pool':
+        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called show_each_pool (Show Each Pool)`)
+        //split callback data for get validator name
+        const validatorName = callbackQuery.data.split(':')[1]
+
+        showCurrentState(validatorName)
+          .then(async (resp) => {
+            const validatorAddress = resp.suiAddress
+            const { poolsMessage } = await handleStakedSuiObjectsByName(validatorAddress)
+
+            await bot.sendMessage(chatId, `${validatorName} reward pools:\n${poolsMessage}`, {
+              parse_mode: 'Markdown',
+            })
+
+            bot.answerCallbackQuery(callbackQuery.id)
+
+            logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
           })
+          .catch(() => {})
+
         break
 
       default:

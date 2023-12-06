@@ -147,18 +147,19 @@ async function handleStakedSuiObjectsByName(address) {
 
       return `ID: ${id} amount: *${formattedPrincipal}*`
     })
+    const totalAmount = totalTokens.toFixed(2)
 
     infoStrings.push(`Total tokens: *${totalTokens.toFixed(2)} SUI*`)
     const poolsMessage = infoStrings.join('\n')
 
-    return poolsMessage
+    return { poolsMessage, totalAmount }
   } else {
-    return `No any staked object`
+    return { poolsMessage: 'No any staked object', totalAmount: 'No any staked object' }
   }
 }
 
 async function handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId) {
-  bot.sendMessage(chatId, 'Sent request. Wait a moment')
+  bot.sendMessage(chatId, 'Sent request. Wait a moment...')
   const result = await signerHelper.withdrawRewardsFromPoolId([stakedPoolId])
   return result
 }
@@ -183,26 +184,6 @@ async function handleWithdrawAllRewards(signerHelper) {
     return resp.digest
   } catch (error) {
     return error
-  }
-}
-
-async function handleStartCommand(chatId, msg) {
-  try {
-    const dataBaseClient = new ClientDb()
-
-    await dataBaseClient.connect()
-
-    await dataBaseClient.createTableIfNotExists()
-
-    const userData = msg.from
-
-    await dataBaseClient.insertData(chatId, userData)
-
-    await dataBaseClient.end()
-
-    logger.info(`Data: ${JSON.stringify(userData)} saved to db`)
-  } catch (error) {
-    logger.error(`Error save to db: ${error.message}`)
   }
 }
 
@@ -239,9 +220,9 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
           chatId,
           `➕ Added stake to ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
         )
-      } else {
+      } else if (parsedData.result) {
         msgId ? await bot.deleteMessage(chatId, msgId) : {}
-        bot.sendMessage(chatId, `Subscribed to Stake for ${valName}`, {
+        bot.sendMessage(chatId, `✅ Subscribed to Stake for ${valName}`, {
           reply_markup: subscribeKeyBoard(),
         })
 
@@ -254,9 +235,10 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
         })
 
         await userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
-
-        //save data to db
-        handleSaveSubscribesToDB(chatId, valName, subscribeData.type, validatorIdenty)
+      } else {
+        bot.sendMessage(chatId, `⛔ Something is wrong, try later.`, {
+          reply_markup: subscribeKeyBoard(),
+        })
       }
     }).then((ws) => {
       subscribeData.ws = ws
@@ -301,9 +283,9 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
           chatId,
           `➖ Unstaked ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${txDigest}`,
         )
-      } else {
+      } else if (parsedData.result) {
         msgId ? await bot.deleteMessage(chatId, msgId) : {}
-        bot.sendMessage(chatId, `Subscribed to Unstake for ${valName}`, {
+        bot.sendMessage(chatId, `✅ Subscribed to Unstake for ${valName}`, {
           reply_markup: subscribeKeyBoard(),
         })
 
@@ -316,9 +298,10 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
         })
 
         userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
-
-        //save data to db
-        handleSaveSubscribesToDB(chatId, valName, subscribeData.type, validatorIdenty)
+      } else {
+        bot.sendMessage(chatId, `⛔ Something is wrong, try later.`, {
+          reply_markup: subscribeKeyBoard(),
+        })
       }
     }).then((ws) => {
       subscribeData.ws = ws //add ws connection to obj for future close
@@ -327,52 +310,6 @@ async function handleUnstakeWsSubscribe(bot, chatId, validatorIdenty, valName, m
     bot.sendMessage(chatId, `❌ You have already subscribed to this event for ${valName}`, {
       reply_markup: subscribeKeyBoard(),
     })
-  }
-}
-
-//handling save subscriptions to db
-async function handleSaveSubscribesToDB(chatId, validatorName, type, address) {
-  try {
-    const dataBaseClient = new ClientDb()
-
-    await dataBaseClient.connect()
-
-    const subscribeValue = {
-      name: validatorName,
-      type: type,
-      address: address,
-    }
-
-    await dataBaseClient.insertSubscribeData(chatId, subscribeValue)
-
-    await dataBaseClient.end()
-
-    logger.info(`Data: ${JSON.stringify(subscribeValue)} saved to db ${chatId}`)
-  } catch (error) {
-    logger.error(`Error save to db: ${error.message}`)
-  }
-}
-
-//handling drop subscriptions from db
-async function handleDropSubscribes(chatId, validatorName, type, address) {
-  try {
-    const dataBaseClient = new ClientDb()
-
-    await dataBaseClient.connect()
-
-    const subscribeValue = {
-      name: validatorName,
-      type: type,
-      address: address,
-    }
-
-    await dataBaseClient.deleteSubscribeData(chatId, subscribeValue)
-
-    await dataBaseClient.end()
-
-    logger.info(`Data: ${JSON.stringify(subscribeValue)} deleted from db ${chatId}`)
-  } catch (error) {
-    logger.error(`Error save to db: ${error.message}`)
   }
 }
 
@@ -398,9 +335,6 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
   userSubscriptions[chatId] = userSubscriptions[chatId].filter((obj) => {
     if (obj.name === valName && eventsType === obj.type) {
       obj.ws.close() //close webscoket connection
-      const address = obj.address
-      //drop subscriptions from db
-      handleDropSubscribes(chatId, valName, obj.type, address)
       return //then delete from array
     } else {
       return true //if can't find name nothing to delete
@@ -440,7 +374,6 @@ export {
   handleWithdrawAllRewards,
   handleStakedSuiObjectsByName,
   handleSetCommission,
-  handleStartCommand,
   handleStakeWsSubscribe,
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
