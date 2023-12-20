@@ -29,8 +29,8 @@ class ClientDb extends Client {
   async end() {
     super
       .end()
-      .then(() => logger.info('Closed connection'))
-      .catch((err) => logger.error(`Closed connection error ${err.stack}`))
+      .then(() => logger.info('Closed db connection'))
+      .catch((err) => logger.error(`Closed db connection error ${err.stack}`))
   }
 
   async createTableIfNotExists() {

@@ -8,6 +8,7 @@ const userSubscriptions = [] //list of all active Subscriptions
 
 //handling input messages from ws connection
 const messageHandler = (bot, chatId, subscription, data) => {
+  console.log(data)
   const valName = subscription.name
   const parsedData = JSON.parse(data) //convert answer to json
 
@@ -45,9 +46,7 @@ const messageHandler = (bot, chatId, subscription, data) => {
     tx = txDigest
     tokensAmount = Number(amount)
   } else {
-    logger.warn(
-      `${valName} type: ${subscription.type} Restore subscriptions inappropriate response from ws connection:`,
-    )
+    logger.warn(`${valName} type: ${subscription.type} Restore subscriptions inappropriate response from ws connection:`)
 
     subscription.subscribeId = parsedData.result //add subscription id to suscription object for future request to unsubscribe
 
@@ -180,12 +179,13 @@ async function handleSubscruptions(bot, chatId) {
           const isCacheHasEvent = userSubscriptions[chatId].find(
             (subscriptionObject) => subscriptionObject.address === valAddress && subscriptionObject.type === type,
           )
+
           if (isCacheHasEvent) {
             subscription.ws = null
             logger.warn('Web Socket connection closed. Reopening...')
             setTimeout(() => {
               opensWs(subscription, bot, chatId)
-            }, 1000)
+            }, 5000)
           }
         })
       }

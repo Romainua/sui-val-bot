@@ -6,86 +6,78 @@ import getStakingPoolIdObjectsByName from '../../api-interaction/validator-cap.j
 import { callbackButtonForStartCommand } from '../keyboards/keyboard.js'
 
 async function handleGetPrice(bot, chatId) {
-   try {
-      const { selectedValidators, currentVotingPower } = await getGasPrice()
-      const formattedValidatorsInfo = selectedValidators
-         .map(
-            ({ name, nextEpochGasPrice, votingPower }, index) =>
-               `${index + 1} ${name}: ${nextEpochGasPrice}, vp – ${votingPower}`,
-         )
-         .join('\n')
-      await bot.sendMessage(
-         chatId,
-         `Next epoch gas price by total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`,
-      )
-      bot.sendMessage(chatId, `Choose a button`, { reply_markup: callbackButtonForStartCommand() })
-   } catch (error) {
-      bot.sendMessage(chatId, 'Error: ' + error.message)
-   }
+  try {
+    const { selectedValidators, currentVotingPower } = await getGasPrice()
+    const formattedValidatorsInfo = selectedValidators
+      .map(({ name, nextEpochGasPrice, votingPower }, index) => `${index + 1} ${name}: ${nextEpochGasPrice}, vp – ${votingPower}`)
+      .join('\n')
+    await bot.sendMessage(chatId, `Next epoch gas price by total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`)
+    bot.sendMessage(chatId, `Choose a button`, { reply_markup: callbackButtonForStartCommand() })
+  } catch (error) {
+    bot.sendMessage(chatId, 'Error: ' + error.message)
+  }
 }
 
 async function handleValidatorInfo(bot, chatId, identy) {
-   const validatorData = await showCurrentState(identy)
+  const validatorData = await showCurrentState(identy)
 
-   const keyboard = valInfoKeyboard(validatorData)
+  const keyboard = valInfoKeyboard(validatorData)
 
-   await bot.sendMessage(chatId, 'Choose a value to display', {
-      reply_markup: keyboard,
-      one_time_keyboard: true,
-      resize_keyboard: true,
-   })
+  await bot.sendMessage(chatId, 'Choose a value to display', {
+    reply_markup: keyboard,
+    one_time_keyboard: true,
+    resize_keyboard: true,
+  })
 
-   return validatorData
+  return validatorData
 }
 
 async function handleStakedSuiObjectsByName(address) {
-   const response = await getStakingPoolIdObjectsByName(address)
+  const response = await getStakingPoolIdObjectsByName(address)
 
-   const filteredObjects = response.data
-      .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
-      .map((item) => item.data)
+  const filteredObjects = response.filter((item) => item.data.type === '0x3::staking_pool::StakedSui').map((item) => item.data)
 
-   if (filteredObjects.length > 0) {
-      let totalTokens = 0
+  if (filteredObjects.length > 0) {
+    let totalTokens = 0
 
-      const infoStrings = filteredObjects.map((obj) => {
-         const id = obj.content.fields.id.id
+    const infoStrings = filteredObjects.map((obj) => {
+      const id = obj.content.fields.id.id
 
-         const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
-         const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
-         totalTokens += reducedPrincipal
+      const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
+      const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
+      totalTokens += reducedPrincipal
 
-         return `ID: ${id},Tokens: ${formattedPrincipal}`
-      })
-      const totalAmount = totalTokens.toFixed(2)
+      return `ID: ${id},Tokens: ${formattedPrincipal}`
+    })
+    const totalAmount = totalTokens.toFixed(2)
 
-      infoStrings.push(`Total tokens: ${totalAmount}`)
-      const poolsMessage = infoStrings.join('\n')
+    infoStrings.push(`Total tokens: ${totalAmount}`)
+    const poolsMessage = infoStrings.join('\n')
 
-      return { poolsMessage, totalAmount }
-   } else {
-      return { poolsMessage: 'No any staked object', totalAmount: 'No any staked object' }
-   }
+    return { poolsMessage, totalAmount }
+  } else {
+    return { poolsMessage: 'No any staked object', totalAmount: 'No any staked object' }
+  }
 }
 
 async function handleStartCommand(chatId, msg) {
-   try {
-      const dataBaseClient = new ClientDb()
+  try {
+    const dataBaseClient = new ClientDb()
 
-      await dataBaseClient.connect()
+    await dataBaseClient.connect()
 
-      await dataBaseClient.createTableIfNotExists()
+    await dataBaseClient.createTableIfNotExists()
 
-      const userData = msg.from
+    const userData = msg.from
 
-      await dataBaseClient.insertData(chatId, userData)
+    await dataBaseClient.insertData(chatId, userData)
 
-      await dataBaseClient.end()
+    await dataBaseClient.end()
 
-      logger.info(`Data: ${JSON.stringify(userData)} saved to db`)
-   } catch (error) {
-      logger.error(`Error save to db: ${error.message}`)
-   }
+    logger.info(`Data: ${JSON.stringify(userData)} saved to db`)
+  } catch (error) {
+    logger.error(`Error save to db: ${error.message}`)
+  }
 }
 
 export { handleGetPrice, handleValidatorInfo, handleStakedSuiObjectsByName, handleStartCommand }
