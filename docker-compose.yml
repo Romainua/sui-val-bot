@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  telegram-bot:
+    build: .
+    container_name: telegram_bot_container
+    restart: unless-stopped
+    volumes:
+      - .:/usr/src/bot
+      - /usr/src/bot/node_modules
+    environment:
+      - NODE_ENV=production
+
+networks:
+  default:
+
