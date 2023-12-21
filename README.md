@@ -60,6 +60,14 @@ npm install
 npm run start
 ```
 
+### Use Docker Compose
+
+3. Just up container on background
+
+```
+sudo docker compose up -d
+```
+
 ### Use Docker
 
 3. For this step install docker. Build docker image.
