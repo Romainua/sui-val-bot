@@ -8,7 +8,6 @@ const userSubscriptions = [] //list of all active Subscriptions
 
 //handling input messages from ws connection
 const messageHandler = (bot, chatId, subscription, data) => {
-  console.log(data)
   const valName = subscription.name
   const parsedData = JSON.parse(data) //convert answer to json
 
