@@ -91,8 +91,8 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
     bot.answerCallbackQuery(callbackQuery.id)
 
     signerHelper.getStakingPoolIdObjects().then(async (response) => {
-      if (response.data.length > 0) {
-        const filteredObjects = response.data
+      if (response.length > 0) {
+        const filteredObjects = response
           .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
           .map((item) => item.data)
 
@@ -102,7 +102,7 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
           return Number(acc) + +formattedPrincipal
         }, 0)
 
-        const sendMsgPromises = filteredObjects.map(async (obj) => {
+        const sendMsgPromises = filteredObjects.slice(0, 25).map(async (obj) => {
           const id = obj.content.fields.id.id
           const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
           const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
@@ -114,7 +114,7 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
 
         await Promise.all(sendMsgPromises)
 
-        bot.sendMessage(chatId, `Total tokens: *${totalTokens.toFixed(2)} SUI*`, {
+        bot.sendMessage(chatId, `Notice! Above is only first 25 pools or less.\nTotal tokens: *${totalTokens.toFixed(2)} SUI*`, {
           reply_markup: valWithdrawKeyboard(),
           one_time_keyboard: true,
           parse_mode: 'Markdown',
@@ -131,9 +131,7 @@ async function handleStakedSuiObjects(bot, chatId, callbackQuery, objectOperatio
 async function handleStakedSuiObjectsByName(address) {
   const response = await getStakingPoolIdObjectsByName(address)
 
-  const filteredObjects = response.data
-    .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
-    .map((item) => item.data)
+  const filteredObjects = response.filter((item) => item.data.type === '0x3::staking_pool::StakedSui').map((item) => item.data)
 
   if (filteredObjects.length > 0) {
     let totalTokens = 0
@@ -167,10 +165,7 @@ async function handleWithdrawFromPoolId(bot, chatId, signerHelper, stakedPoolId)
 async function handleWithdrawAllRewards(signerHelper) {
   try {
     const response = await signerHelper.getStakingPoolIdObjects()
-
-    const filteredObjects = response.data
-      .filter((item) => item.data.type === '0x3::staking_pool::StakedSui')
-      .map((item) => item.data)
+    const filteredObjects = response.filter((item) => item.data.type === '0x3::staking_pool::StakedSui').map((item) => item.data)
 
     const arrayOfObjects = []
 
@@ -179,6 +174,7 @@ async function handleWithdrawAllRewards(signerHelper) {
 
       arrayOfObjects.push(stakedPoolId)
     }
+
     const resp = await signerHelper.withdrawRewardsFromPoolId(arrayOfObjects)
 
     return resp.digest
@@ -202,7 +198,7 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
   if (!isHasName) {
     createWebSocketConnection(validatorIdenty, async (data) => {
       const parsedData = JSON.parse(data) //convert answer to json
-
+      console.log(parsedData)
       if (parsedData.params?.result) {
         const {
           params: {
@@ -236,7 +232,7 @@ async function handleStakeWsSubscribe(bot, chatId, validatorIdenty, valName, msg
 
         await userSubscriptions[chatId].push(subscribeData) //subscribeData object to userSubscriptions object with array that has chat id key
       } else {
-        bot.sendMessage(chatId, `⛔ Something is wrong, try later.`, {
+        bot.sendMessage(chatId, `⛔ Something went wrong, try later. Check your ws endpoint.`, {
           reply_markup: subscribeKeyBoard(),
         })
       }
@@ -346,6 +342,7 @@ async function handleTokensBalance(signerHelper) {
   const balance = await signerHelper.getBalance()
   return (Number.parseInt(balance.totalBalance) / 1e9).toFixed(2)
 }
+
 async function handleSendTokens(amount, recipient, signerHelper, bot, chatId) {
   const { digest, effects } = await signerHelper.sendTokens(amount, recipient)
 

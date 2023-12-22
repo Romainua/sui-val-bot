@@ -992,8 +992,8 @@ function attachHandlers(bot) {
           .then(async (resp) => {
             const validatorAddress = resp.suiAddress
             const { poolsMessage } = await handleStakedSuiObjectsByName(validatorAddress)
-
-            await bot.sendMessage(chatId, `${validatorName} reward pools:\n${poolsMessage}`, {
+            console.log(poolsMessage)
+            await bot.sendMessage(chatId, `${poolsMessage}`, {
               parse_mode: 'Markdown',
             })
 

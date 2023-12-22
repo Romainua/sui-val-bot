@@ -62,17 +62,23 @@ class SignerHelper {
       return err
     }
   }
+  async delay(duration) {
+    return new Promise((resolve) => setTimeout(resolve, duration))
+  }
 
   async withdrawRewardsFromPoolId(arrayOfStakedPoolId) {
     const tx = new TransactionBlock()
 
     try {
-      for (let obj of arrayOfStakedPoolId) {
-        tx.moveCall({
-          target: `${packageObjectId}::sui_system::request_withdraw_stake`,
-          arguments: [tx.object('0x5'), tx.object(`${obj}`)],
-        })
-      }
+      do {
+        for (const objectId of arrayOfStakedPoolId.slice(0, 2)) {
+          tx.moveCall({
+            target: `${packageObjectId}::sui_system::request_withdraw_stake`,
+            arguments: [tx.object('0x5'), tx.object(`${objectId}`)],
+          })
+          await arrayOfStakedPoolId.splice(0, 2)
+        }
+      } while (arrayOfStakedPoolId.length > 0)
 
       const result = await this.client.signAndExecuteTransactionBlock({
         signer: this.signer,
@@ -109,12 +115,24 @@ class SignerHelper {
     // If coin type is not specified, it defaults to 0x2::sui::SUI
     const address = await this.getAddress()
 
-    const stakedSuiObjects = await this.client.getOwnedObjects({
-      owner: address,
-      options: { showType: true, showContent: true },
-    })
+    var totalStakedSui = []
+    var isNextPage = true
+    var cursor = null
 
-    return stakedSuiObjects
+    do {
+      const stakedSuiObjects = await this.client.getOwnedObjects({
+        owner: address,
+        cursor: cursor,
+        options: { showType: true, showContent: true },
+      })
+
+      totalStakedSui.push(...stakedSuiObjects.data)
+
+      isNextPage = stakedSuiObjects.hasNextPage
+      cursor = stakedSuiObjects.nextCursor
+    } while (isNextPage)
+
+    return totalStakedSui
   }
 
   async getOperationCapId() {
@@ -152,12 +170,24 @@ class SignerHelper {
 async function getStakingPoolIdObjectsByName(address) {
   const client = new SuiClient({ url: process.env.apiUrl })
 
-  const stakedSuiObjects = await client.getOwnedObjects({
-    owner: address,
-    options: { showType: true, showContent: true },
-  })
+  var totalStakedSui = []
+  var isNextPage = true
+  var cursor = null
 
-  return stakedSuiObjects
+  do {
+    const stakedSuiObjects = await client.getOwnedObjects({
+      owner: address,
+      cursor: cursor,
+      options: { showType: true, showContent: true },
+    })
+
+    totalStakedSui.push(...stakedSuiObjects.data)
+
+    isNextPage = stakedSuiObjects.hasNextPage
+    cursor = stakedSuiObjects.nextCursor
+  } while (isNextPage)
+
+  return totalStakedSui
 }
 
 export { SignerHelper, getStakingPoolIdObjectsByName }
