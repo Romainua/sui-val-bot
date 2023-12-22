@@ -62,9 +62,6 @@ class SignerHelper {
       return err
     }
   }
-  async delay(duration) {
-    return new Promise((resolve) => setTimeout(resolve, duration))
-  }
 
   async withdrawRewardsFromPoolId(arrayOfStakedPoolId) {
     const tx = new TransactionBlock()
