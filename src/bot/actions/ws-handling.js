@@ -85,9 +85,12 @@ async function handleInitRestorSubscriptions(bot) {
     .getAllData()
     .then(async (usersData) => {
       await dataBaseClient.end()
+
       let chatId
+
       for (const dataUser of usersData) {
         const subscribe_data = dataUser.subscribe_data
+
         chatId = dataUser.id
 
         if (subscribe_data.length > 0) {
@@ -126,6 +129,7 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
       await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type)
 
       await handleSubscruptions(bot, chatId)
+
       return Promise.resolve()
     } catch {
       return Promise.reject()
@@ -165,7 +169,18 @@ async function handleSubscruptions(bot, chatId) {
         subscription.ws = ws
 
         ws.on('message', function message(data) {
-          messageHandler(bot, chatId, subscription, data) //when we get events notifications
+          const parsedData = JSON.parse(data)
+
+          if ('error' in parsedData) {
+            logger.error(`Error in answer from ws request try resend request`)
+            logger.error(JSON.stringify(parsedData, null, 2))
+
+            setTimeout(async () => {
+              opensWs(subscription, bot, chatId)
+            }, 36000)
+          } else {
+            messageHandler(bot, chatId, subscription, data) //when we get events notifications
+          }
         })
 
         ws.on('error', () => {
