@@ -102,7 +102,8 @@ async function handleInitRestorSubscriptions(bot) {
 
               return handleSaveSubscriptionToCache(chatId, valAddress, valName, type) //save subscriptions data to cache
             }),
-          ).then(() => {
+          ).then(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 15000))
             handleSubscruptions(bot, chatId) //restor ws connections when subscriptions ware saved to cache
           })
         }
@@ -175,9 +176,10 @@ async function handleSubscruptions(bot, chatId) {
             logger.error(`Error in answer from ws request try resend request`)
             logger.error(JSON.stringify(parsedData, null, 2))
 
-            setTimeout(async () => {
+            subscription.ws = null
+            setTimeout(() => {
               opensWs(subscription, bot, chatId)
-            }, 36000)
+            }, 180000)
           } else {
             messageHandler(bot, chatId, subscription, data) //when we get events notifications
           }
