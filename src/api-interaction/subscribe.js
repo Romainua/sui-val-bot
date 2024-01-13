@@ -39,7 +39,7 @@ async function createWebSocketConnection(validatorAddress, type) {
 
     setInterval(() => {
       ws.ping()
-    }, 5000)
+    }, 35000)
   })
 
   //when we get error
