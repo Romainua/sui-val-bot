@@ -172,17 +172,17 @@ async function handleSubscruptions(bot, chatId) {
         ws.on('message', function message(data) {
           const parsedData = JSON.parse(data)
 
-          if ('error' in parsedData) {
-            logger.error(`Error in answer from ws request try resend request`)
-            logger.error(JSON.stringify(parsedData, null, 2))
+          // if ('error' in parsedData) {
+          //   logger.error(`Error in answer from ws request try resend request`)
+          //   logger.error(JSON.stringify(parsedData, null, 2))
 
-            subscription.ws = null
-            setTimeout(() => {
-              opensWs(subscription, bot, chatId)
-            }, 180000)
-          } else {
-            messageHandler(bot, chatId, subscription, data) //when we get events notifications
-          }
+          //   subscription.ws = null
+          //   setTimeout(() => {
+          //     opensWs(subscription, bot, chatId)
+          //   }, 180000)
+          // } else {
+          // }
+          messageHandler(bot, chatId, subscription, data) //when we get events notifications
         })
 
         ws.on('error', () => {
