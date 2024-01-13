@@ -3,6 +3,7 @@ import logger from '../handle-logs/logger.js'
 import createWebSocketConnection from '../../api-interaction/subscribe.js'
 import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/keyboard.js'
 import WebSocket from 'ws'
+import requestData from '../../api-interaction/request.js'
 
 const userSubscriptions = [] //list of all active Subscriptions
 
@@ -172,16 +173,15 @@ async function handleSubscruptions(bot, chatId) {
         ws.on('message', function message(data) {
           const parsedData = JSON.parse(data)
 
-          // if ('error' in parsedData) {
-          //   logger.error(`Error in answer from ws request try resend request`)
-          //   logger.error(JSON.stringify(parsedData, null, 2))
+          if ('error' in parsedData) {
+            logger.error(`Error in answer from ws request try resend request`)
+            logger.error(JSON.stringify(parsedData, null, 2))
 
-          //   subscription.ws = null
-          //   setTimeout(() => {
-          //     opensWs(subscription, bot, chatId)
-          //   }, 180000)
-          // } else {
-          // }
+            setTimeout(() => {
+              ws.send(JSON.stringify(requestData(type, valAddress))) //send requst
+            }, 180000)
+          } else {
+          }
           messageHandler(bot, chatId, subscription, data) //when we get events notifications
         })
 

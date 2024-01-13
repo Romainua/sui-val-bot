@@ -1,6 +1,6 @@
 import WebSocket from 'ws'
 import dotenv from 'dotenv'
-
+import requestData from './request.js'
 dotenv.config()
 
 async function initWsConnection() {
@@ -11,35 +11,14 @@ async function initWsConnection() {
 async function createWebSocketConnection(validatorAddress, type) {
   const ws = await initWsConnection()
 
-  const requestData = {
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'suix_subscribeEvent',
-    params: [
-      {
-        And: [
-          {
-            MoveEventField: {
-              path: '/validator_address',
-              value: validatorAddress,
-            },
-          },
-          {
-            MoveEventType: `0x3::validator::${type === 'delegate' ? 'StakingRequestEvent' : 'UnstakingRequestEvent'}`,
-          },
-        ],
-      },
-    ],
-  }
-
   ws.on('open', function open() {
     console.log('WebSocket connection established')
 
-    ws.send(JSON.stringify(requestData)) //send requst
+    ws.send(JSON.stringify(requestData(type, validatorAddress))) //send requst
 
     setInterval(() => {
       ws.ping()
-    }, 35000)
+    }, 5000)
   })
 
   //when we get error
