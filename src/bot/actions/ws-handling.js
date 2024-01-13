@@ -87,28 +87,46 @@ async function handleInitRestorSubscriptions(bot) {
     .then(async (usersData) => {
       await dataBaseClient.end()
 
-      let chatId
-
       for (const dataUser of usersData) {
         const subscribe_data = dataUser.subscribe_data
 
-        chatId = dataUser.id
-
         if (subscribe_data.length > 0) {
-          await Promise.all(
-            subscribe_data.map((subscription) => {
-              const valAddress = subscription.address
-              const valName = subscription.name
-              const type = subscription.type
+          const chatId = dataUser.id
 
-              return handleSaveSubscriptionToCache(chatId, valAddress, valName, type) //save subscriptions data to cache
-            }),
-          ).then(async () => {
-            await new Promise((resolve) => setTimeout(resolve, 15000))
-            handleSubscruptions(bot, chatId) //restor ws connections when subscriptions ware saved to cache
-          })
+          for (const subscription of subscribe_data) {
+            const valAddress = subscription.address
+            const valName = subscription.name
+            const type = subscription.type
+
+            await handleSaveSubscriptionToCache(chatId, valAddress, valName, type) //save subscriptions data to cache
+
+            await handleSubscruptions(bot, chatId)
+
+            await new Promise((resolve) => setTimeout(resolve, 5000))
+          }
         }
       }
+
+      // for (const dataUser of usersData) {
+      //   const subscribe_data = dataUser.subscribe_data
+
+      //   chatId = dataUser.id
+
+      //   if (subscribe_data.length > 0) {
+      //     await Promise.all(
+      //       subscribe_data.map((subscription) => {
+      //         const valAddress = subscription.address
+      //         const valName = subscription.name
+      //         const type = subscription.type
+
+      //         return handleSaveSubscriptionToCache(chatId, valAddress, valName, type) //save subscriptions data to cache
+      //       }),
+      //     ).then(async () => {
+      //       await new Promise((resolve) => setTimeout(resolve, 15000))
+      //       handleSubscruptions(bot, chatId) //restor ws connections when subscriptions ware saved to cache
+      //     })
+      //   }
+      // }
     })
     .catch((err) => {
       logger.error(`db doesn't have data: ${err}`)
@@ -179,7 +197,7 @@ async function handleSubscruptions(bot, chatId) {
 
             setTimeout(() => {
               ws.send(JSON.stringify(requestData(type, valAddress))) //send requst
-            }, 180000)
+            }, 1800000)
           } else {
           }
           messageHandler(bot, chatId, subscription, data) //when we get events notifications
