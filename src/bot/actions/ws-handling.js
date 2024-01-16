@@ -46,7 +46,9 @@ const messageHandler = (bot, chatId, subscription, data) => {
     tx = txDigest
     tokensAmount = Number(amount)
   } else if (parsedData.result) {
-    logger.info(`${valName} type: ${subscription.type} successful subscribtion result id: ${parsedData.result}`)
+    logger.info(
+      `${valName} type: ${subscription.type} successful subscribtion for chat (${chatId}), result id: ${parsedData.result}`,
+    )
 
     subscription.subscribeId = parsedData.result //add subscription id to suscription object for future request to unsubscribe
 
