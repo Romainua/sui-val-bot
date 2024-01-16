@@ -1,6 +1,7 @@
 import WebSocket from 'ws'
 import dotenv from 'dotenv'
 import requestData from './request.js'
+import logger from '../bot/handle-logs/logger.js'
 dotenv.config()
 
 async function initWsConnection() {
