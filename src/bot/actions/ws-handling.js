@@ -176,7 +176,9 @@ async function handleSubscruptions(bot, chatId) {
           const parsedData = JSON.parse(data)
 
           if ('error' in parsedData) {
-            logger.error(`Error in answer from ws request try resend request`)
+            logger.error(
+              `Error in answer from ws request try resend request. Validator: ${subscription.name} Type: ${subscription.type}`,
+            )
             logger.error(JSON.stringify(parsedData, null, 2))
 
             setTimeout(() => {

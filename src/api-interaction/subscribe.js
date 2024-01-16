@@ -12,7 +12,7 @@ async function createWebSocketConnection(validatorAddress, type) {
   const ws = await initWsConnection()
 
   ws.on('open', function open() {
-    console.log('WebSocket connection established')
+    logger.info(`WebSocket connection established`)
 
     ws.send(JSON.stringify(requestData(type, validatorAddress))) //send requst
 
