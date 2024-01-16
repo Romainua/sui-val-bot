@@ -45,12 +45,15 @@ const messageHandler = (bot, chatId, subscription, data) => {
 
     tx = txDigest
     tokensAmount = Number(amount)
-  } else {
-    logger.warn(`${valName} type: ${subscription.type} Restore subscriptions inappropriate response from ws connection:`)
+  } else if (parsedData.result) {
+    logger.info(`${valName} type: ${subscription.type} successful subscribtion result id: ${parsedData.result}`)
 
     subscription.subscribeId = parsedData.result //add subscription id to suscription object for future request to unsubscribe
 
-    console.log(parsedData)
+    return
+  } else {
+    logger.warn(`${valName} type: ${subscription.type} inappropriate response from ws connection:`)
+    logger.warn(parsedData)
     return
   }
 
@@ -106,27 +109,6 @@ async function handleInitRestorSubscriptions(bot) {
           }
         }
       }
-
-      // for (const dataUser of usersData) {
-      //   const subscribe_data = dataUser.subscribe_data
-
-      //   chatId = dataUser.id
-
-      //   if (subscribe_data.length > 0) {
-      //     await Promise.all(
-      //       subscribe_data.map((subscription) => {
-      //         const valAddress = subscription.address
-      //         const valName = subscription.name
-      //         const type = subscription.type
-
-      //         return handleSaveSubscriptionToCache(chatId, valAddress, valName, type) //save subscriptions data to cache
-      //       }),
-      //     ).then(async () => {
-      //       await new Promise((resolve) => setTimeout(resolve, 15000))
-      //       handleSubscruptions(bot, chatId) //restor ws connections when subscriptions ware saved to cache
-      //     })
-      //   }
-      // }
     })
     .catch((err) => {
       logger.error(`db doesn't have data: ${err}`)
@@ -199,8 +181,8 @@ async function handleSubscruptions(bot, chatId) {
               ws.send(JSON.stringify(requestData(type, valAddress))) //send requst
             }, 1800000)
           } else {
+            messageHandler(bot, chatId, subscription, data) //when we get events notifications
           }
-          messageHandler(bot, chatId, subscription, data) //when we get events notifications
         })
 
         ws.on('error', () => {
