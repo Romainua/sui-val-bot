@@ -55,7 +55,7 @@ const messageHandler = (bot, chatId, subscription, data) => {
     return
   } else {
     logger.warn(`${valName} type: ${subscription.type} inappropriate response from ws connection:`)
-    logger.warn(parsedData)
+    logger.warn(JSON.stringify(parsedData))
     return
   }
 
