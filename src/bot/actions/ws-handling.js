@@ -10,6 +10,8 @@ const userSubscriptions = [] //list of all active Subscriptions
 //handling input messages from ws connection
 const messageHandler = (bot, chatId, subscription, data) => {
   const valName = subscription.name
+  const sizeOfTokens = Number(subscription.tokenSize)
+
   const parsedData = JSON.parse(data) //convert answer to json
 
   const type = parsedData?.params?.result?.type
@@ -71,7 +73,7 @@ const messageHandler = (bot, chatId, subscription, data) => {
       chatId,
       `Epoch changed. A validator reward:\n- name: ${valName}\n- epoch: ${epoch}\n- amount: ${formattedPrincipal}`,
     )
-  } else {
+  } else if (reducedAmount >= sizeOfTokens) {
     bot.sendMessage(
       chatId,
       ` ${
@@ -102,8 +104,9 @@ async function handleInitRestorSubscriptions(bot) {
             const valAddress = subscription.address
             const valName = subscription.name
             const type = subscription.type
+            const sizeOfTokens = subscription.tokenSize || 'All'
 
-            await handleSaveSubscriptionToCache(chatId, valAddress, valName, type) //save subscriptions data to cache
+            await handleSaveSubscriptionToCache(chatId, valAddress, valName, type, sizeOfTokens) //save subscriptions data to cache
 
             await handleSubscruptions(bot, chatId)
 
@@ -117,7 +120,18 @@ async function handleInitRestorSubscriptions(bot) {
     })
 }
 
-async function handleInitSubscription(bot, chatId, valAddress, validatorName, type) {
+async function handleInitSubscription(bot, chatId, valAddress, validatorName, type, sizeOfTokens) {
+  const amountOfTokens =
+    sizeOfTokens === '100+'
+      ? 100
+      : sizeOfTokens === '1k+'
+      ? 1000
+      : sizeOfTokens === '10k+'
+      ? 10000
+      : sizeOfTokens === '100k+'
+      ? 100000
+      : 0
+
   if (!userSubscriptions[chatId]) {
     userSubscriptions[chatId] = [] //if current chat id doesn't exist init empty array for objects with subscribe data
   }
@@ -128,9 +142,9 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
 
   if (!isCacheHasEvent) {
     try {
-      handleSaveSubscribesToDB(chatId, validatorName, type, valAddress)
+      handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens)
 
-      await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type)
+      await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens)
 
       await handleSubscruptions(bot, chatId)
 
@@ -144,7 +158,7 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
 }
 
 //save subscription data to cache
-async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type) {
+async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, sizeOfTokens) {
   if (!userSubscriptions[chatId]) {
     userSubscriptions[chatId] = [] //if current chat id doesn't exist init empty array for objects with subscribe data
   }
@@ -155,6 +169,7 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type) 
     type: type === 'delegate' ? 'delegate' : 'undelegate',
     text: `Unsubscribe ${type === 'delegate' ? 'Stake' : 'Unstake'} event for ${valName}`,
     address: valAddress,
+    tokenSize: sizeOfTokens,
   }
   userSubscriptions[chatId].push(subscribeData) //add subscription data to user array
 }
@@ -216,7 +231,7 @@ async function handleSubscruptions(bot, chatId) {
 }
 
 //handling save subscriptions to db
-async function handleSaveSubscribesToDB(chatId, validatorName, type, address) {
+async function handleSaveSubscribesToDB(chatId, validatorName, type, address, sizeOfTokens) {
   try {
     const dataBaseClient = new ClientDb()
 
@@ -226,6 +241,7 @@ async function handleSaveSubscribesToDB(chatId, validatorName, type, address) {
       name: validatorName,
       type: type,
       address: address,
+      tokenSize: sizeOfTokens,
     }
 
     await dataBaseClient.insertSubscribeData(chatId, subscribeValue)

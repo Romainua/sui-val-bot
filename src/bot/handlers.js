@@ -8,12 +8,19 @@ import {
 
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from './handle-logs/logger.js'
-import { subscribeKeyBoard, backReply, callbackButtonForStartCommand, backReplyForMainMenu } from './keyboards/keyboard.js'
+import {
+  subscribeKeyBoard,
+  backReply,
+  callbackButtonForStartCommand,
+  backReplyForMainMenu,
+  callbackButtonSizeOfTokens,
+} from './keyboards/keyboard.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
 const waitingValidatorNameForRewards = new Map()
 const waitingForValidatorNameForWsConnection = new Map()
+const waitingForSizeOfTokensForWs = new Map()
 const listOfAddedValidatorNames = new Map() //here saving validator name for future requests, history of requests
 
 function attachHandlers(bot) {
@@ -124,43 +131,75 @@ function attachHandlers(bot) {
       return
     }
 
-    //set waiting validator name for add/remove stake subscribe
-    if (waitingForValidatorNameForWsConnection.get(chatId)) {
-      const validatorName = msg.text
-      const { status, type, msgId } = waitingForValidatorNameForWsConnection.get(chatId) //status for check waiting, type for check type of stake it depend which function will call msgId for delete message on called function
+    if (waitingForSizeOfTokensForWs.get(chatId)) {
+      const listOfSize = ['All', '100+', '1k+', '10k+', '100k+']
 
-      if (status) {
+      const { valName, type, msgId } = waitingForValidatorNameForWsConnection.get(chatId) //status for check waiting, type for check type of stake it depend which function will call msgId for delete message on called function
+      const sizeOfTokens = msg.text
+
+      const isSize = listOfSize.includes(sizeOfTokens)
+
+      if (isSize) {
         LIST_OF_COMMANDS.includes(msg.text)
-          ? waitingForValidatorNameForWsConnection.set(chatId, { status: false }) //close wating if were push one of tg commands
-          : showCurrentState(validatorName)
+          ? waitingForSizeOfTokensForWs.set(chatId, false) //close wating if were push one of tg commands
+          : showCurrentState(valName)
               .then((data) => {
                 const valAddress = data.suiAddress
 
-                handleInitSubscription(bot, chatId, valAddress, validatorName, type)
+                handleInitSubscription(bot, chatId, valAddress, valName, type, sizeOfTokens)
                   .then(async () => {
-                    waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+                    waitingForSizeOfTokensForWs.set(chatId, false)
 
                     await bot.deleteMessage(chatId, msgId)
 
-                    bot.sendMessage(chatId, `Event for ${validatorName} has been added`, {
+                    bot.sendMessage(chatId, `Event for ${valName} has been added`, {
                       reply_markup: subscribeKeyBoard(),
                     })
                   })
                   .catch(() => {
-                    bot.sendMessage(chatId, `⭕ This event has been added for ${validatorName}`, {
+                    bot.sendMessage(chatId, `⭕ This event has been added for ${valName}`, {
                       reply_markup: subscribeKeyBoard(),
                     })
                   })
 
-                logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${validatorName}`)
+                logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${valName}`)
               })
               .catch((err) => {
                 console.log(err)
                 bot.sendMessage(chatId, "❗ Can't find validator.", {
                   reply_markup: { inline_keyboard: backReply() },
                 })
-                logger.warn(`User ${msg.from.username} (${msg.from.id}) Can't find validator for ${validatorName}`)
+                logger.warn(`User ${msg.from.username} (${msg.from.id}) Can't find validator for ${valName}`)
               })
+        return
+      } else {
+        bot.sendMessage(chatId, 'Input correct value', {
+          reply_markup: { inline_keyboard: backReply() },
+        })
+        return
+      }
+    }
+
+    //set waiting validator name for add/remove stake subscribe
+    if (waitingForValidatorNameForWsConnection.get(chatId)) {
+      const validatorName = msg.text
+      const wsValData = waitingForValidatorNameForWsConnection.get(chatId) //status for check waiting, type for check type of stake it depend which function will call msgId for delete message on called function
+
+      if (wsValData.status) {
+        if (LIST_OF_COMMANDS.includes(msg.text)) {
+          waitingForValidatorNameForWsConnection.set(chatId, { status: false }) //close wating if were push one of tg commands
+          return
+        }
+        waitingForValidatorNameForWsConnection.set(chatId, { ...wsValData, valName: validatorName })
+
+        bot
+          .sendMessage(chatId, 'Select amount of tokens:', {
+            reply_markup: callbackButtonSizeOfTokens(),
+          })
+          .then(() => {
+            waitingForSizeOfTokensForWs.set(chatId, true)
+          })
+
         return
       }
     }
@@ -257,6 +296,7 @@ function attachHandlers(bot) {
     waitingForValidatorName.set(chatId, false)
     waitingValidatorNameForRewards.set(chatId, false)
     waitingForValidatorNameForWsConnection.set(chatId, { status: false })
+    waitingForSizeOfTokensForWs.set(chatId, false)
 
     let action
     let callbackData
@@ -374,6 +414,7 @@ function attachHandlers(bot) {
         )
 
         bot.deleteMessage(chatId, msgId)
+
         bot
           .sendMessage(chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
