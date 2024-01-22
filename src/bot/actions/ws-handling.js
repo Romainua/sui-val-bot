@@ -105,8 +105,18 @@ async function handleInitRestorSubscriptions(bot) {
             const valName = subscription.name
             const type = subscription.type
             const sizeOfTokens = subscription.tokenSize || 'All'
+            const amountOfTokens =
+              sizeOfTokens === '100+'
+                ? 100
+                : sizeOfTokens === '1k+'
+                ? 1000
+                : sizeOfTokens === '10k+'
+                ? 10000
+                : sizeOfTokens === '100k+'
+                ? 100000
+                : 0
 
-            await handleSaveSubscriptionToCache(chatId, valAddress, valName, type, sizeOfTokens) //save subscriptions data to cache
+            await handleSaveSubscriptionToCache(chatId, valAddress, valName, type, amountOfTokens) //save subscriptions data to cache
 
             await handleSubscruptions(bot, chatId)
 
