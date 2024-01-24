@@ -152,12 +152,12 @@ function attachHandlers(bot) {
 
                     await bot.deleteMessage(chatId, msgId)
 
-                    bot.sendMessage(chatId, `Event for ${valName} has been added`, {
+                    bot.sendMessage(chatId, `Event for ${valName} has been added ✅`, {
                       reply_markup: subscribeKeyBoard(),
                     })
                   })
                   .catch(() => {
-                    bot.sendMessage(chatId, `⭕ This event has been added for ${valName}`, {
+                    bot.sendMessage(chatId, `⭕ This event has already been added for ${valName}`, {
                       reply_markup: subscribeKeyBoard(),
                     })
                   })
@@ -541,26 +541,14 @@ function attachHandlers(bot) {
 
       case 'main_menu':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Menu)`)
-
         bot
-          .deleteMessage(chatId, msgId)
+          .editMessageText('Menu. Choose a button.', {
+            chat_id: chatId,
+            message_id: msg.message_id,
+            reply_markup: callbackButtonForStartCommand(),
+          })
           .then(() => {
-            bot
-              .sendMessage(chatId, 'waiting...', {
-                reply_markup: {
-                  remove_keyboard: true,
-                },
-              })
-              .then((message) => {
-                bot.deleteMessage(chatId, message.message_id)
-                bot
-                  .sendMessage(chatId, 'Choose a button:', {
-                    reply_markup: callbackButtonForStartCommand(),
-                  })
-                  .then(() => {
-                    bot.answerCallbackQuery(callbackQuery.id)
-                  })
-              })
+            bot.answerCallbackQuery(callbackQuery.id)
           })
           .catch((error) => {
             logger.error('main_menu Error:', error)

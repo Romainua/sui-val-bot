@@ -177,7 +177,7 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
     ws: null,
     name: valName,
     type: type === 'delegate' ? 'delegate' : 'undelegate',
-    text: `Unsubscribe ${type === 'delegate' ? 'Stake' : 'Unstake'} event for ${valName}`,
+    text: `Unsubscribe from ${type === 'delegate' ? 'Stake' : 'Unstake'} event for ${valName}`,
     address: valAddress,
     tokenSize: sizeOfTokens,
   }

@@ -2,8 +2,8 @@ function subscribeKeyBoard() {
   return {
     inline_keyboard: [
       [
-        { text: 'Stake', callback_data: 'delegation' },
-        { text: 'Unstake', callback_data: 'undelegation' },
+        { text: 'Stake 🟢', callback_data: 'delegation' },
+        { text: 'Unstake 🔴', callback_data: 'undelegation' },
       ],
       [{ text: 'Check active subscriptions', callback_data: 'check_active_subscriptions' }],
       [{ text: '⬅ Back', callback_data: 'main_menu' }],
@@ -24,7 +24,12 @@ function backReplyForMainMenu() {
 
 function unsubscribeCallBackButton(subscriptionsArray) {
   const callBackObjectButton = subscriptionsArray.map((obj) => {
-    return [{ text: `${obj.text}`, callback_data: `stake_unsubscribe:${obj.name}:${obj.type}` }]
+    return [
+      {
+        text: `${obj.text} ${obj.type === 'delegate' ? '🟢' : '🔴'}`,
+        callback_data: `stake_unsubscribe:${obj.name}:${obj.type}`,
+      },
+    ]
   })
 
   const backButton = [{ text: '⬅ Back', callback_data: 'back_button' }] //add back button
@@ -37,12 +42,12 @@ function callbackButtonForStartCommand() {
   return {
     inline_keyboard: [
       [
-        { text: 'Set Stake Notifications', callback_data: 'set_stake_notify' },
-        { text: 'Show Validator Info', callback_data: 'show_val_info' },
+        { text: 'Set Event Notify 🔔', callback_data: 'set_stake_notify' },
+        { text: 'Show Validator Info 📄', callback_data: 'show_val_info' },
       ],
       [
-        { text: 'Show Rewards', callback_data: 'show_rewards' },
-        { text: 'Show Gas Price', callback_data: 'show_gas_price' },
+        { text: 'Show Rewards 🏆', callback_data: 'show_rewards' },
+        { text: 'Show Gas Price ⛽', callback_data: 'show_gas_price' },
       ],
     ],
   }
