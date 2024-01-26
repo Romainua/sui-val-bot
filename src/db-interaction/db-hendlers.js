@@ -60,6 +60,7 @@ class ClientDb extends Client {
   async insertSubscribeData(userId, value) {
     const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
     const currentSubscriptions = res.rows[0]?.subscribe_data || []
+
     const existingSubscription = currentSubscriptions.find(
       (subscription) => JSON.stringify(subscription) === JSON.stringify(value),
     )
@@ -81,7 +82,7 @@ class ClientDb extends Client {
     const currentSubscriptions = res.rows[0]?.subscribe_data || []
 
     const updatedSubscriptions = currentSubscriptions.filter(
-      (subscription) => JSON.stringify(subscription) !== JSON.stringify(valueToDelete),
+      (subscription) => subscription.name === valueToDelete.name && subscription.type === valueToDelete.type,
     )
 
     const query = `

@@ -265,7 +265,7 @@ async function handleSaveSubscribesToDB(chatId, validatorName, type, address, si
 }
 
 //handling drop subscriptions from db
-async function handleDropSubscriptionFromDB(chatId, validatorName, type, address) {
+async function handleDropSubscriptionFromDB(chatId, validatorName, type, address, tokenSize) {
   try {
     const dataBaseClient = new ClientDb()
 
@@ -275,6 +275,7 @@ async function handleDropSubscriptionFromDB(chatId, validatorName, type, address
       name: validatorName,
       type: type,
       address: address,
+      tokenSize,
     }
 
     await dataBaseClient.deleteSubscribeData(chatId, subscribeValue)
@@ -297,15 +298,16 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
     const address = userSubscriptions[chatId][index].address
     const ws = userSubscriptions[chatId][index].ws
     const subscriptionId = userSubscriptions[chatId][index].subscribeId
+    const tokenSize = userSubscriptions[chatId][index].tokenSize
 
     //remove from cache
-    await userSubscriptions[chatId].splice(index, 1)
+    userSubscriptions[chatId].splice(index, 1)
 
     //send unsubscribe requests with id of subscription
     ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
 
     //drop subscriptions from db
-    handleDropSubscriptionFromDB(chatId, valName, eventsType, address)
+    handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize)
 
     logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
   }
