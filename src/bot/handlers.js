@@ -391,7 +391,6 @@ function attachHandlers(bot) {
       case 'delegation':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Event)`)
 
-        bot.deleteMessage(chatId, msgId)
         bot
           .sendMessage(chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
@@ -412,8 +411,6 @@ function attachHandlers(bot) {
         logger.info(
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used undelegation (Subscribe to Unstake Event)`,
         )
-
-        bot.deleteMessage(chatId, msgId)
 
         bot
           .sendMessage(chatId, 'Input validator name:', {
