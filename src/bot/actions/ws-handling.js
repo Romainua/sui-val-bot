@@ -55,6 +55,8 @@ const messageHandler = (bot, chatId, subscription, data) => {
     subscription.subscribeId = parsedData.result //add subscription id to suscription object for future request to unsubscribe
 
     return
+  } else if (parsedData.error) {
+    logger.error(`Error on ${valName} type: ${subscription.type} subscription for chat (${chatId}), error: ${parsedData.error}`)
   } else {
     logger.warn(`${valName} type: ${subscription.type} inappropriate response from ws connection:`)
     logger.warn(JSON.stringify(parsedData))
@@ -207,9 +209,13 @@ async function handleSubscruptions(bot, chatId) {
             logger.error(JSON.stringify(parsedData, null, 2))
 
             setTimeout(() => {
-              ws.send(JSON.stringify(requestData(type, valAddress))) //send requst
-            }, 1800000)
+              ws.send(JSON.stringify(requestData(type, valAddress))) //send request
+            }, 30000)
           } else {
+            logger.info(
+              `Success in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}, Data: ${data}`,
+            )
+
             messageHandler(bot, chatId, subscription, data) //when we get events notifications
           }
         })
