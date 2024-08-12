@@ -137,46 +137,50 @@ function attachHandlers(bot) {
       const { valName, type, msgId } = waitingForValidatorNameForWsConnection.get(chatId) //status for check waiting, type for check type of stake it depend which function will call msgId for delete message on called function
       const sizeOfTokens = msg.text
 
-      const isSize = listOfSize.includes(sizeOfTokens)
+      if (LIST_OF_COMMANDS.includes(sizeOfTokens)) {
+        waitingForSizeOfTokensForWs.set(chatId, false) // Close waiting if a TG command was entered
+        return
+      }
 
-      if (isSize) {
-        LIST_OF_COMMANDS.includes(msg.text)
-          ? waitingForSizeOfTokensForWs.set(chatId, false) //close wating if were push one of tg commands
-          : showCurrentState(valName)
-              .then((data) => {
-                const valAddress = data.suiAddress
+      if (listOfSize.includes(sizeOfTokens)) {
+        showCurrentState(valName)
+          .then((data) => {
+            const valAddress = data.suiAddress
 
-                handleInitSubscription(bot, chatId, valAddress, valName, type, sizeOfTokens)
-                  .then(async () => {
-                    waitingForSizeOfTokensForWs.set(chatId, false)
+            handleInitSubscription(bot, chatId, valAddress, valName, type, sizeOfTokens)
+              .then(async () => {
+                waitingForSizeOfTokensForWs.set(chatId, false)
 
-                    await bot.deleteMessage(chatId, msgId)
+                await bot.deleteMessage(chatId, msgId)
 
-                    bot.sendMessage(chatId, `Event for ${valName} has been added ✅`, {
-                      reply_markup: subscribeKeyBoard(),
-                    })
-                  })
-                  .catch(() => {
-                    bot.sendMessage(chatId, `⭕ This event has already been added for ${valName}`, {
-                      reply_markup: subscribeKeyBoard(),
-                    })
-                  })
-
-                logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${valName}`)
-              })
-              .catch((err) => {
-                console.log(err)
-                bot.sendMessage(chatId, "❗ Can't find validator.", {
-                  reply_markup: { inline_keyboard: backReply() },
+                bot.sendMessage(chatId, `Event for ${valName} has been added ✅`, {
+                  reply_markup: subscribeKeyBoard(),
                 })
-                logger.warn(`User ${msg.from.username} (${msg.from.id}) Can't find validator for ${valName}`)
               })
+              .catch(() => {
+                bot.sendMessage(
+                  chatId,
+                  `⭕ This event has already been added for ${valName}.\nIf you want change amount of tokens, please unsubscribe from old one.`,
+                  {
+                    reply_markup: subscribeKeyBoard(),
+                  },
+                )
+              })
+
+            logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${valName}`)
+          })
+          .catch((err) => {
+            console.log(err)
+            bot.sendMessage(chatId, "❗ Can't find validator.", {
+              reply_markup: { inline_keyboard: backReply() },
+            })
+            logger.warn(`User ${msg.from.username} (${msg.from.id}) Can't find validator for ${valName}`)
+          })
         return
       } else {
-        bot.sendMessage(chatId, 'Input correct value', {
+        bot.sendMessage(chatId, 'Select a valid value', {
           reply_markup: { inline_keyboard: backReply() },
         })
-        return
       }
     }
 
@@ -190,7 +194,7 @@ function attachHandlers(bot) {
           waitingForValidatorNameForWsConnection.set(chatId, { status: false }) //close wating if were push one of tg commands
           return
         }
-        waitingForValidatorNameForWsConnection.set(chatId, { ...wsValData, valName: validatorName })
+        waitingForValidatorNameForWsConnection.set(chatId, { ...wsValData, valName: validatorName, status: false })
 
         bot
           .sendMessage(chatId, 'Select amount of tokens:', {
