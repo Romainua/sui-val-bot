@@ -214,8 +214,9 @@ async function handleSubscruptions(bot, chatId) {
           } else if (!'error' in parsedData) {
             messageHandler(bot, chatId, subscription, data) //when we get events notifications
           } else if (typeof parsedData.result === 'number') {
-            logger.info(`Success subscription. Validator: ${subscription.name} Type: ${subscription.type}`)
-            logger.info(JSON.stringify(parsedData, null, 2))
+            logger.info(
+              `Success subscription. Validator: ${subscription.name} Type: ${subscription.type} Result: ${parsedData.result}`,
+            )
           } else {
             logger.error(`Unexpected error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
             logger.error(JSON.stringify(parsedData, null, 2))
