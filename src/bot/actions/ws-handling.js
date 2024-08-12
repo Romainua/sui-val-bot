@@ -108,13 +108,13 @@ async function handleInitRestorSubscriptions(bot) {
             const type = subscription.type
             const sizeOfTokens = subscription.tokenSize || 'All'
             const amountOfTokens =
-              sizeOfTokens === '100+'
+              sizeOfTokens === 100
                 ? 100
-                : sizeOfTokens === '1k+'
+                : sizeOfTokens === 1000
                 ? 1000
-                : sizeOfTokens === '10k+'
+                : sizeOfTokens === 10000
                 ? 10000
-                : sizeOfTokens === '100k+'
+                : sizeOfTokens === 100000
                 ? 100000
                 : 0
 
@@ -122,7 +122,7 @@ async function handleInitRestorSubscriptions(bot) {
 
             await handleSubscruptions(bot, chatId)
 
-            await new Promise((resolve) => setTimeout(resolve, 3000))
+            await new Promise((resolve) => setTimeout(resolve, 1000))
           }
         }
       }
@@ -309,14 +309,14 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
     const subscriptionId = userSubscriptions[chatId][index].subscribeId
     const tokenSize = userSubscriptions[chatId][index].tokenSize
 
-    //remove from cache
-    userSubscriptions[chatId].splice(index, 1)
-
-    //send unsubscribe requests with id of subscription
-    ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
-
     //drop subscriptions from db
-    handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize)
+    handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize).then(() => {
+      //send unsubscribe requests with id of subscription
+      ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
+
+      //remove from cache after success delete from db
+      userSubscriptions[chatId].splice(index, 1)
+    })
 
     logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
   }

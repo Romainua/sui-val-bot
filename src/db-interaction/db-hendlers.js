@@ -78,20 +78,41 @@ class ClientDb extends Client {
   }
 
   async deleteSubscribeData(userId, valueToDelete) {
-    const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
-    const currentSubscriptions = res.rows[0]?.subscribe_data || []
+    try {
+      const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
 
-    const updatedSubscriptions = currentSubscriptions.filter(
-      (subscription) => subscription.name === valueToDelete.name && subscription.type === valueToDelete.type,
-    )
+      const currentSubscriptions = res.rows[0]?.subscribe_data || []
 
-    const query = `
-        UPDATE user_data 
-        SET subscribe_data = $2
-        WHERE id = $1;
+      if (currentSubscriptions.length === 0) {
+        logger.info(`No subscriptions found for user with ID: ${userId}`)
+        throw new Error('No subscriptions to delete')
+      }
+
+      const updatedSubscriptions = currentSubscriptions.filter((subscription) => {
+        const nameMatch = subscription.name === valueToDelete.name
+        const typeMatch = subscription.type === valueToDelete.type
+
+        // Return true if the subscription does NOT match the valueToDelete by name and type
+        return !(nameMatch && typeMatch)
+      })
+
+      if (updatedSubscriptions.length === currentSubscriptions.length) {
+        logger.info(`No matching subscription found for deletion for user with ID: ${userId}`)
+        throw new Error('No matching subscription found for deletion')
+      }
+
+      const query = `
+      UPDATE user_data 
+      SET subscribe_data = $2
+      WHERE id = $1;
     `
 
-    await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+      await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+      logger.info(`Subscription data updated for user with ID: ${userId}`)
+    } catch (err) {
+      logger.error(`Failed to delete subscription data for user with ID: ${userId}`, err)
+      throw err // Re-throw the error after logging it, in case the caller wants to handle it
+    }
   }
 
   async getAllData() {
