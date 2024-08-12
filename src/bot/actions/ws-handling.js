@@ -122,7 +122,7 @@ async function handleInitRestorSubscriptions(bot) {
 
             await handleSubscruptions(bot, chatId)
 
-            await new Promise((resolve) => setTimeout(resolve, 5000))
+            await new Promise((resolve) => setTimeout(resolve, 3000))
           }
         }
       }
