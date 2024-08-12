@@ -211,7 +211,7 @@ async function handleSubscruptions(bot, chatId) {
             setTimeout(() => {
               ws.send(JSON.stringify(requestData(type, valAddress))) //send request
             }, 30000)
-          } else if (!'error' in parsedData) {
+          } else if (parsedData.method === 'suix_subscribeEvent') {
             messageHandler(bot, chatId, subscription, data) //when we get events notifications
           } else if (typeof parsedData.result === 'number') {
             logger.info(
