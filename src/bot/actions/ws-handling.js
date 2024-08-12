@@ -211,12 +211,14 @@ async function handleSubscruptions(bot, chatId) {
             setTimeout(() => {
               ws.send(JSON.stringify(requestData(type, valAddress))) //send request
             }, 30000)
-          } else {
-            logger.info(
-              `Success in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}, Data: ${data}`,
-            )
-
+          } else if (!'error' in parsedData) {
             messageHandler(bot, chatId, subscription, data) //when we get events notifications
+          } else if (typeof parsedData.result === 'number') {
+            logger.info(`Success subscription. Validator: ${subscription.name} Type: ${subscription.type}`)
+            logger.info(JSON.stringify(parsedData, null, 2))
+          } else {
+            logger.error(`Unexpected error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
+            logger.error(JSON.stringify(parsedData, null, 2))
           }
         })
 
@@ -225,6 +227,7 @@ async function handleSubscruptions(bot, chatId) {
         })
 
         ws.on('close', function close() {
+          logger.warn('Web Socket connection closed. Reopening...')
           //if subscription data was remove from cache, try to find if NaN connection won't open because user remove it from cache
           //check if cache already has subscription data
           const isCacheHasEvent = userSubscriptions[chatId].find(
@@ -233,7 +236,6 @@ async function handleSubscruptions(bot, chatId) {
 
           if (isCacheHasEvent) {
             subscription.ws = null
-            logger.warn('Web Socket connection closed. Reopening...')
             setTimeout(() => {
               opensWs(subscription, bot, chatId)
             }, 5000)
