@@ -66,11 +66,22 @@ export default function messageHandler(bot, chatId, subscription, data) {
       `Epoch changed. A validator reward:\n- name: ${valName}\n- epoch: ${epoch}\n- amount: ${formattedPrincipal}`,
     )
   } else if (reducedAmount >= sizeOfTokens) {
-    bot.sendMessage(
-      chatId,
-      ` ${
-        type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
-      } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
-    )
+    try {
+      bot.sendMessage(
+        chatId,
+        ` ${
+          type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
+        } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
+      )
+    } catch (error) {
+      if (error.response && error.response.statusCode === 403) {
+        console.error(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
+
+        // Delete user from database here
+        // await deleteUserFromDatabase(chatId);
+      } else {
+        console.error(`An unexpected error occurred: ${error.message}`)
+      }
+    }
   }
 }

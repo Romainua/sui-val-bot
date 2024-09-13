@@ -567,7 +567,13 @@ function attachHandlers(bot) {
             const validatorAddress = resp.suiAddress
             const { poolsMessage } = await handleStakedSuiObjectsByName(validatorAddress)
 
-            await bot.sendMessage(chatId, `${validatorName} reward pools:\n${poolsMessage}`)
+            await bot.sendMessage(
+              chatId,
+              `Validator: *${validatorName}*/re/\nFirst 35 pools (telegram limit.):\n${poolsMessage}`,
+              {
+                parse_mode: 'Markdown',
+              },
+            )
             bot.answerCallbackQuery(callbackQuery.id)
             logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
           })

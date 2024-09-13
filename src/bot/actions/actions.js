@@ -35,28 +35,35 @@ async function handleValidatorInfo(bot, chatId, identy) {
 async function handleStakedSuiObjectsByName(address) {
   const response = await getStakingPoolIdObjectsByName(address)
 
+  // Filter and map the staked SUI objects
   const filteredObjects = response.filter((item) => item.data.type === '0x3::staking_pool::StakedSui').map((item) => item.data)
 
+  // Check if there are any filtered objects
   if (filteredObjects.length > 0) {
-    let totalTokens = 0
-
-    const infoStrings = filteredObjects.map((obj) => {
+    // Map through the first 20 staked objects and format their data
+    const infoStrings = filteredObjects.slice(0, 35).map((obj) => {
       const id = obj.content.fields.id.id
-
       const reducedPrincipal = Number(obj.content.fields.principal) / 1e9
-      const formattedPrincipal = Number(reducedPrincipal).toFixed(2)
-      totalTokens += reducedPrincipal
+      const formattedPrincipal = reducedPrincipal.toFixed(0)
 
-      return `ID: ${id},Tokens: ${formattedPrincipal}`
+      return `\`${id}\` ${formattedPrincipal}`
     })
+
+    // Use reduce to calculate the total tokens
+    const totalTokens = filteredObjects.reduce((accumulator, current) => {
+      const reducedPrincipal = Number(current.content.fields.principal) / 1e9
+      return accumulator + reducedPrincipal
+    }, 0)
+
     const totalAmount = totalTokens.toFixed(2)
 
-    infoStrings.push(`Total tokens: ${totalAmount}`)
+    // Append the total tokens to the info string
+    infoStrings.push(`\nTotal tokens: ${totalAmount} SUI`)
     const poolsMessage = infoStrings.join('\n')
 
     return { poolsMessage, totalAmount }
   } else {
-    return { poolsMessage: 'No any staked object', totalAmount: 'No any staked object' }
+    return { poolsMessage: 'No staked objects found', totalAmount: '0' }
   }
 }
 
