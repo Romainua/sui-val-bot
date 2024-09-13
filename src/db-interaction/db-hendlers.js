@@ -8,6 +8,7 @@ dotenv.config()
 
 class ClientDb extends Client {
   constructor() {
+    // Call the parent constructor with database config
     super({
       user: process.env.PGUSER,
       host: process.env.PGHOST,
@@ -20,17 +21,21 @@ class ClientDb extends Client {
   }
 
   async connect() {
-    super
-      .connect()
-      .then(() => logger.info('Connected to db'))
-      .catch((err) => logger.error(`Connection error ${err.stack}`))
+    try {
+      await super.connect()
+      logger.info('Connected to db')
+    } catch (err) {
+      logger.error(`Connection error: ${err.stack}`)
+    }
   }
 
   async end() {
-    super
-      .end()
-      .then(() => logger.info('Closed db connection'))
-      .catch((err) => logger.error(`Closed db connection error ${err.stack}`))
+    try {
+      await super.end()
+      logger.info('Closed db connection')
+    } catch (err) {
+      logger.error(`Closed db connection error: ${err.stack}`)
+    }
   }
 
   async createTableIfNotExists() {
@@ -41,9 +46,12 @@ class ClientDb extends Client {
         subscribe_data JSONB DEFAULT '[]'
       );
     `
-    await this.query(queryText)
-
-    logger.info('Table created or already exists')
+    try {
+      await this.query(queryText)
+      logger.info('Table created or already exists')
+    } catch (err) {
+      logger.error(`Error creating table: ${err.stack}`)
+    }
   }
 
   async insertData(id, value) {
@@ -52,35 +60,44 @@ class ClientDb extends Client {
       VALUES ($1, $2)
       ON CONFLICT (id) DO UPDATE SET data = $2;
     `
-    await this.query(queryText, [id, value])
-
-    logger.info('Data inserted or updated')
+    try {
+      await this.query(queryText, [id, value])
+      logger.info('Data inserted or updated')
+    } catch (err) {
+      logger.error(`Failed to insert/update data: ${err.stack}`)
+    }
   }
 
   async insertSubscribeData(userId, value) {
-    const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
-    const currentSubscriptions = res.rows[0]?.subscribe_data || []
+    try {
+      const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
+      const currentSubscriptions = res.rows[0]?.subscribe_data || []
 
-    const existingSubscription = currentSubscriptions.find(
-      (subscription) => JSON.stringify(subscription) === JSON.stringify(value),
-    )
+      const existingSubscription = currentSubscriptions.find(
+        (subscription) => JSON.stringify(subscription) === JSON.stringify(value),
+      )
 
-    if (!existingSubscription) {
-      const updatedSubscriptions = [...currentSubscriptions, value]
+      if (!existingSubscription) {
+        const updatedSubscriptions = [...currentSubscriptions, value]
 
-      const query = `
-           UPDATE user_data 
-           SET subscribe_data = $2
-           WHERE id = $1;
-         `
-      await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+        const query = `
+          UPDATE user_data 
+          SET subscribe_data = $2
+          WHERE id = $1;
+        `
+        await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+        logger.info('Subscription data inserted or updated')
+      } else {
+        logger.info('Subscription already exists')
+      }
+    } catch (err) {
+      logger.error(`Failed to insert subscription data for user with ID: ${userId}`, err)
     }
   }
 
   async deleteSubscribeData(userId, valueToDelete) {
     try {
       const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
-
       const currentSubscriptions = res.rows[0]?.subscribe_data || []
 
       if (currentSubscriptions.length === 0) {
@@ -91,8 +108,6 @@ class ClientDb extends Client {
       const updatedSubscriptions = currentSubscriptions.filter((subscription) => {
         const nameMatch = subscription.name === valueToDelete.name
         const typeMatch = subscription.type === valueToDelete.type
-
-        // Return true if the subscription does NOT match the valueToDelete by name and type
         return !(nameMatch && typeMatch)
       })
 
@@ -102,16 +117,15 @@ class ClientDb extends Client {
       }
 
       const query = `
-      UPDATE user_data 
-      SET subscribe_data = $2
-      WHERE id = $1;
-    `
-
+        UPDATE user_data 
+        SET subscribe_data = $2
+        WHERE id = $1;
+      `
       await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
       logger.info(`Subscription data updated for user with ID: ${userId}`)
     } catch (err) {
       logger.error(`Failed to delete subscription data for user with ID: ${userId}`, err)
-      throw err // Re-throw the error after logging it, in case the caller wants to handle it
+      throw err
     }
   }
 
@@ -120,8 +134,7 @@ class ClientDb extends Client {
       const result = await this.query('SELECT * FROM user_data')
       return result.rows
     } catch (err) {
-      logger.error(`Error executing query ${err.stack}`)
-
+      logger.error(`Error executing query: ${err.stack}`)
       return null
     }
   }

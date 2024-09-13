@@ -4,7 +4,7 @@ import {
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
   handleInitSubscription,
-} from './actions/ws-handling.js'
+} from './actions/subscription-handlers.js'
 
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from './handle-logs/logger.js'

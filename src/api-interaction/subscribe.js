@@ -21,12 +21,6 @@ async function createWebSocketConnection(validatorAddress, type) {
       ws.ping()
     }, 5000)
   })
-
-  //when we get error
-  ws.on('error', function error(err) {
-    console.error('WebSocket encountered error: ', err)
-  })
-
   return ws
 }
 

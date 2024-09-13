@@ -4,86 +4,9 @@ import createWebSocketConnection from '../../api-interaction/subscribe.js'
 import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/keyboard.js'
 import WebSocket from 'ws'
 import requestData from '../../api-interaction/request.js'
+import messageHandler from './message-handler.js'
 
 const userSubscriptions = [] //list of all active Subscriptions
-
-//handling input messages from ws connection
-const messageHandler = (bot, chatId, subscription, data) => {
-  const valName = subscription.name
-  const sizeOfTokens = Number(subscription.tokenSize)
-
-  const parsedData = JSON.parse(data) //convert answer to json
-
-  const type = parsedData?.params?.result?.type
-  const epoch = parsedData?.params?.result?.parsedJson?.epoch || parsedData?.params?.result?.parsedJson?.unstaking_epoch
-
-  let tx //tx digest
-  let tokensAmount //amount for unstake or stake
-
-  //if we have principal_amount on struct, it means that there WithdrawRequestEvent
-  if (parsedData.params?.result?.parsedJson?.principal_amount) {
-    const {
-      params: {
-        result: {
-          id: { txDigest },
-          parsedJson: { principal_amount, reward_amount },
-        },
-      },
-    } = parsedData //dustructuring to obtain the desired properties
-
-    tx = txDigest
-    tokensAmount = Number(principal_amount) + Number(reward_amount)
-
-    //if we have amount on struct, it means that there StakingRequestEvent
-  } else if (parsedData.params?.result?.parsedJson?.amount) {
-    const {
-      params: {
-        result: {
-          id: { txDigest },
-          parsedJson: { amount },
-        },
-      },
-    } = parsedData //dustructuring to obtain the desired properties
-
-    tx = txDigest
-    tokensAmount = Number(amount)
-  } else if (parsedData.result) {
-    logger.info(
-      `${valName} type: ${subscription.type} successful subscribtion for chat (${chatId}), result id: ${parsedData.result}`,
-    )
-
-    subscription.subscribeId = parsedData.result //add subscription id to suscription object for future request to unsubscribe
-
-    return
-  } else if (parsedData.error) {
-    logger.error(`Error on ${valName} type: ${subscription.type} subscription for chat (${chatId}), error: ${parsedData.error}`)
-  } else {
-    logger.warn(`${valName} type: ${subscription.type} inappropriate response from ws connection:`)
-    logger.warn(JSON.stringify(parsedData))
-    return
-  }
-
-  //format amount
-  const reducedAmount = Number(tokensAmount) / 1e9
-  const formattedPrincipal = Number(reducedAmount).toFixed(2)
-
-  const epochChangeSender = `0x0000000000000000000000000000000000000000000000000000000000000000`
-
-  //if sender is epoch changing
-  if (parsedData?.params?.result?.sender === epochChangeSender) {
-    bot.sendMessage(
-      chatId,
-      `Epoch changed. A validator reward:\n- name: ${valName}\n- epoch: ${epoch}\n- amount: ${formattedPrincipal}`,
-    )
-  } else if (reducedAmount >= sizeOfTokens) {
-    bot.sendMessage(
-      chatId,
-      ` ${
-        type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
-      } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
-    )
-  }
-}
 
 async function handleInitRestorSubscriptions(bot) {
   const dataBaseClient = new ClientDb()
@@ -144,12 +67,9 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
       ? 100000
       : 0
 
-  if (!userSubscriptions[chatId]) {
-    userSubscriptions[chatId] = [] //if current chat id doesn't exist init empty array for objects with subscribe data
-  }
-
-  const isCacheHasEvent = userSubscriptions[chatId].find(
-    (subscriptionObject) => subscriptionObject.name === validatorName && subscriptionObject.type === type,
+  const isCacheHasEvent = userSubscriptions[chatId]?.find(
+    (subscriptionObject) =>
+      subscriptionObject.name?.toLowerCase() === validatorName?.toLowerCase() && subscriptionObject.type === type,
   )
 
   if (!isCacheHasEvent) {
@@ -182,6 +102,7 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
     text: `Unsubscribe from ${type === 'delegate' ? 'Stake' : 'Unstake'} event for ${valName}`,
     address: valAddress,
     tokenSize: sizeOfTokens,
+    subscribeId: null,
   }
   userSubscriptions[chatId].push(subscribeData) //add subscription data to user array
 }
@@ -214,17 +135,23 @@ async function handleSubscruptions(bot, chatId) {
           } else if (parsedData.method === 'suix_subscribeEvent') {
             messageHandler(bot, chatId, subscription, data) //when we get events notifications
           } else if (typeof parsedData.result === 'number') {
+            subscription.subscribeId = parsedData.result
             logger.info(
               `Success subscription. Validator: ${subscription.name} Type: ${subscription.type} Result: ${parsedData.result}`,
             )
+          } else if (parsedData.result) {
+            logger.info(
+              `Success unsubscribed. Validator: ${subscription.name} Type: ${subscription.type} Result: ${parsedData.result}`,
+            )
           } else {
-            logger.error(`Unexpected error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
-            logger.error(JSON.stringify(parsedData, null, 2))
+            logger.warn(`Unexpected error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
+            logger.warn(JSON.stringify(parsedData, null, 2))
           }
         })
 
         ws.on('error', () => {
-          logger.error(`Error, try reconnect`)
+          logger.error(`Web Socket connection error. Validator: ${subscription.name} Type: ${subscription.type}`)
+          logger.error(JSON.stringify(parsedData, null, 2))
         })
 
         ws.on('close', function close() {
@@ -298,27 +225,27 @@ async function handleDropSubscriptionFromDB(chatId, validatorName, type, address
 }
 
 async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
-  const index = userSubscriptions[chatId].findIndex((obj) => {
-    return obj.name === valName && eventsType === obj.type
-  })
-
-  if (index !== -1) {
-    //get data by index
-    const address = userSubscriptions[chatId][index].address
-    const ws = userSubscriptions[chatId][index].ws
-    const subscriptionId = userSubscriptions[chatId][index].subscribeId
-    const tokenSize = userSubscriptions[chatId][index].tokenSize
-
-    //drop subscriptions from db
-    handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize).then(() => {
-      //send unsubscribe requests with id of subscription
-      ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
-
-      //remove from cache after success delete from db
-      userSubscriptions[chatId].splice(index, 1)
+  if (userSubscriptions[chatId]) {
+    const index = userSubscriptions[chatId].findIndex((obj) => {
+      return obj.name.toLowerCase() === valName.toLowerCase() && eventsType === obj.type
     })
 
-    logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
+    if (index !== -1) {
+      //get data by index
+      const address = userSubscriptions[chatId][index].address
+      const ws = userSubscriptions[chatId][index].ws
+      const subscriptionId = userSubscriptions[chatId][index].subscribeId
+      const tokenSize = userSubscriptions[chatId][index].tokenSize
+      //drop subscriptions from db
+      handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize).then(() => {
+        //send unsubscribe requests with id of subscription
+        ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
+        //remove from cache after success delete from db
+        userSubscriptions[chatId].splice(index, 1)
+      })
+
+      logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
+    }
   }
 }
 
