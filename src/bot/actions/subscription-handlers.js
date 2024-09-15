@@ -124,16 +124,16 @@ async function handleSubscruptions(bot, chatId) {
           const parsedData = JSON.parse(data)
 
           if ('error' in parsedData) {
-            logger.error(
-              `Error in answer from ws request try resend request. Validator: ${subscription.name} Type: ${subscription.type}`,
-            )
+            logger.error(`Error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
+            ws.close()
             logger.error(JSON.stringify(parsedData, null, 2))
 
             setTimeout(() => {
-              ws.send(JSON.stringify(requestData(type, valAddress))) //send request
+              // Initiate a new connection instead of using the old ws object
+              opensWs(subscription, bot, chatId) // Reopen the connection with the existing subscription
             }, 30000)
           } else if (parsedData.method === 'suix_subscribeEvent') {
-            messageHandler(bot, chatId, subscription, data) //when we get events notifications
+            messageHandler(bot, chatId, subscription, data)
           } else if (typeof parsedData.result === 'number') {
             subscription.subscribeId = parsedData.result
             logger.info(
@@ -144,7 +144,9 @@ async function handleSubscruptions(bot, chatId) {
               `Success unsubscribed. Validator: ${subscription.name} Type: ${subscription.type} Result: ${parsedData.result}`,
             )
           } else {
-            logger.warn(`Unexpected error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
+            logger.warn(
+              `Unexpected error in response from ws request. Validator: ${subscription.name} Type: ${subscription.type}`,
+            )
             logger.warn(JSON.stringify(parsedData, null, 2))
           }
         })
