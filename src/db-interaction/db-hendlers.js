@@ -67,6 +67,25 @@ class ClientDb extends Client {
       logger.error(`Failed to insert/update data: ${err.stack}`)
     }
   }
+  async dropData(chatId) {
+    const queryText = `
+      DELETE FROM user_data
+      WHERE id = $1;
+    `
+
+    try {
+      const result = await this.query(queryText, [chatId])
+
+      // Check if any row was deleted
+      if (result.rowCount > 0) {
+        logger.info(`Chat with ID ${chatId} successfully deleted from the database.`)
+      } else {
+        logger.warn(`User with ID ${chatId} not found in the database.`)
+      }
+    } catch (err) {
+      logger.error(`Error deleting user with ID ${chatId}: ${err.stack}`)
+    }
+  }
 
   async insertSubscribeData(userId, value) {
     try {

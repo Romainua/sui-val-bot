@@ -1,3 +1,5 @@
+import ClientDb from '../../db-interaction/db-hendlers.js'
+
 export default async function messageHandler(bot, chatId, subscription, data) {
   const valName = subscription.name
   const sizeOfTokens = Number(subscription.tokenSize)
@@ -74,10 +76,11 @@ export default async function messageHandler(bot, chatId, subscription, data) {
         } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
       )
     } catch (error) {
-      console.error(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
+      const dataBaseClient = new ClientDb()
+      await dataBaseClient.connect()
+      await dataBaseClient.dropData(chatId)
 
-      // Delete user from database here
-      // await deleteUserFromDatabase(chatId);
+      console.warn(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
     }
   }
 }
