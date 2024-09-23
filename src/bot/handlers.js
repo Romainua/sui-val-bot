@@ -520,7 +520,7 @@ function attachHandlers(bot) {
 
         break
 
-      case 'valInfo': //case when callback button has valInfo type
+      case 'validator_info': //case when callback button has valInfo type
         const key = callbackData.key
 
         //show info for added and custom validator by name

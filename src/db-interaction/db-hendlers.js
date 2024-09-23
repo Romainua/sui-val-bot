@@ -148,6 +148,16 @@ class ClientDb extends Client {
     }
   }
 
+  async getUserData(chatId) {
+    try {
+      const result = await this.query('SELECT * FROM user_data WHERE id = $1', [chatId])
+      return result.rows
+    } catch (err) {
+      logger.error(`Error executing query: ${err.stack}`)
+      return null
+    }
+  }
+
   async getAllData() {
     try {
       const result = await this.query('SELECT * FROM user_data')

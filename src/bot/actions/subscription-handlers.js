@@ -3,7 +3,6 @@ import logger from '../handle-logs/logger.js'
 import createWebSocketConnection from '../../api-interaction/subscribe.js'
 import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/keyboard.js'
 import WebSocket from 'ws'
-import requestData from '../../api-interaction/request.js'
 import messageHandler from './message-handler.js'
 
 const userSubscriptions = [] //list of all active Subscriptions
@@ -156,15 +155,22 @@ async function handleSubscruptions(bot, chatId) {
           logger.error(JSON.stringify(parsedData, null, 2))
         })
 
-        ws.on('close', function close() {
+        ws.on('close', async function close() {
           logger.warn('Web Socket connection closed. Reopening...')
           //if subscription data was remove from cache, try to find if NaN connection won't open because user remove it from cache
           //check if cache already has subscription data
           const isCacheHasEvent = userSubscriptions[chatId].find(
             (subscriptionObject) => subscriptionObject.address === valAddress && subscriptionObject.type === type,
           )
+          const dataBaseClient = new ClientDb()
 
-          if (isCacheHasEvent) {
+          await dataBaseClient.connect()
+
+          const isDbHasData = await dataBaseClient.getUserData(chatId)
+
+          await dataBaseClient.end()
+
+          if (isCacheHasEvent && isDbHasData.length > 0) {
             subscription.ws = null
             setTimeout(() => {
               opensWs(subscription, bot, chatId)

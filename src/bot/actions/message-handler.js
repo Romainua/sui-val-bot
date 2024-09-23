@@ -1,4 +1,5 @@
 import ClientDb from '../../db-interaction/db-hendlers.js'
+import logger from '../handle-logs/logger.js'
 
 export default async function messageHandler(bot, chatId, subscription, data) {
   const valName = subscription.name
@@ -76,11 +77,15 @@ export default async function messageHandler(bot, chatId, subscription, data) {
         } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
       )
     } catch (error) {
+      logger.error(`Error on send message: ${error}`)
+      await subscription.ws.close()
+
       const dataBaseClient = new ClientDb()
       await dataBaseClient.connect()
       await dataBaseClient.dropData(chatId)
-
-      console.warn(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
+      await dataBaseClient.end()
+    } finally {
+      logger.warn(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
     }
   }
 }
