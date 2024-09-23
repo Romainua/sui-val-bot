@@ -84,7 +84,6 @@ export default async function messageHandler(bot, chatId, subscription, data) {
       await dataBaseClient.connect()
       await dataBaseClient.dropData(chatId)
       await dataBaseClient.end()
-    } finally {
       logger.warn(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
     }
   }
