@@ -69,22 +69,22 @@ export default async function messageHandler(bot, chatId, subscription, data) {
       `Epoch changed. A validator reward:\n- name: ${valName}\n- epoch: ${epoch}\n- amount: ${formattedPrincipal}`,
     )
   } else if (reducedAmount >= sizeOfTokens) {
-    try {
-      await bot.sendMessage(
-        chatId,
-        ` ${
-          type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
-        } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
-      )
-    } catch (error) {
-      logger.error(`Error on send message: ${error}`)
-      await subscription.ws.close()
+    // try {
+    await bot.sendMessage(
+      chatId,
+      ` ${
+        type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
+      } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
+    )
+    // } catch (error) {
+    //   logger.error(`Error on send message: ${error}`)
+    //   await subscription.ws.close()
 
-      const dataBaseClient = new ClientDb()
-      await dataBaseClient.connect()
-      await dataBaseClient.dropData(chatId)
-      await dataBaseClient.end()
-      logger.warn(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
-    }
+    //   const dataBaseClient = new ClientDb()
+    //   await dataBaseClient.connect()
+    //   await dataBaseClient.dropData(chatId)
+    //   await dataBaseClient.end()
+    //   logger.warn(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
+    // }
   }
 }
