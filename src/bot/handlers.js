@@ -259,6 +259,8 @@ function attachHandlers(bot) {
     bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
       reply_markup: subscribeKeyBoard(),
     })
+
+    handleStartCommand(chatId, msg) //added this because of issue when user blocked bot and data was delete from db, whith this we can add data to db without start command
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /stakenotify command`)
   })
 
@@ -317,6 +319,8 @@ function attachHandlers(bot) {
 
     switch (action) {
       case 'set_stake_notify':
+        handleStartCommand(chatId, msg) //added this because of issue when user blocked bot and data was delete from db, whith this we can add data to db without start command
+
         bot
           .editMessageText('Subscribe to stake/unstake events. Choose event.', {
             chat_id: chatId,
@@ -420,11 +424,11 @@ function attachHandlers(bot) {
           .sendMessage(chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
-          .then((message) => {
+          .then((msg) => {
             waitingForValidatorNameForWsConnection.set(chatId, {
               status: true,
               type: 'undelegate',
-              msgId: message.message_id, //add id of message for delete it
+              msgId: msg.message_id, //add id of message for delete it
             })
             bot.answerCallbackQuery(callbackQuery.id)
           })
