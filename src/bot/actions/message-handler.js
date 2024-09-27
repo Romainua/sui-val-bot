@@ -1,5 +1,5 @@
-import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../handle-logs/logger.js'
+import messageSender from '../../../src/utils/message-sender.js'
 
 export default async function messageHandler(bot, chatId, subscription, data) {
   const valName = subscription.name
@@ -64,27 +64,14 @@ export default async function messageHandler(bot, chatId, subscription, data) {
 
   //if sender is epoch changing
   if (parsedData?.params?.result?.sender === epochChangeSender) {
-    await bot.sendMessage(
-      chatId,
-      `Epoch changed. A validator reward:\n- name: ${valName}\n- epoch: ${epoch}\n- amount: ${formattedPrincipal}`,
-    )
-  } else if (reducedAmount >= sizeOfTokens) {
-    // try {
-    await bot.sendMessage(
-      chatId,
-      ` ${
-        type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
-      } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`,
-    )
-    // } catch (error) {
-    //   logger.error(`Error on send message: ${error}`)
-    //   await subscription.ws.close()
+    const message = `Epoch changed. A validator reward:\n- name: ${valName}\n- epoch: ${epoch}\n- amount: ${formattedPrincipal}`
 
-    //   const dataBaseClient = new ClientDb()
-    //   await dataBaseClient.connect()
-    //   await dataBaseClient.dropData(chatId)
-    //   await dataBaseClient.end()
-    //   logger.warn(`User with chat ID ${chatId} validator: ${valName} blocked the bot. Deleting from the database...`)
-    // }
+    await messageSender(bot, chatId, message, subscription)
+  } else if (reducedAmount >= sizeOfTokens) {
+    const meesage = ` ${
+      type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
+    } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`
+
+    await messageSender(bot, chatId, meesage, subscription)
   }
 }

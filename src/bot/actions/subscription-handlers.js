@@ -150,9 +150,9 @@ async function handleSubscruptions(bot, chatId) {
           }
         })
 
-        ws.on('error', () => {
+        ws.on('error', (err) => {
           logger.error(`Web Socket connection error. Validator: ${subscription.name} Type: ${subscription.type}`)
-          logger.error(JSON.stringify(parsedData, null, 2))
+          logger.error(err)
         })
 
         ws.on('close', async function close() {
