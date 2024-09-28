@@ -1,7 +1,8 @@
 import WebSocket from 'ws'
 import dotenv from 'dotenv'
-import requestData from './request.js'
+import { stakingEventsRequest, epochChangeEventRequest } from './request.js'
 import logger from '../bot/handle-logs/logger.js'
+
 dotenv.config()
 
 async function initWsConnection() {
@@ -14,8 +15,11 @@ async function createWebSocketConnection(validatorAddress, type) {
 
   ws.on('open', function open() {
     logger.info(`WebSocket connection established`)
-
-    ws.send(JSON.stringify(requestData(type, validatorAddress))) //send requst
+    if (type === 'epoch_reward') {
+      ws.send(JSON.stringify(epochChangeEventRequest(validatorAddress))) //send requst
+    } else {
+      ws.send(JSON.stringify(stakingEventsRequest(type, validatorAddress))) //send requst
+    }
 
     setInterval(() => {
       ws.ping()

@@ -30,7 +30,7 @@ function attachHandlers(bot) {
   const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/menu', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
 
   //handling custom messages, input name, key, gas, commission...
-  bot.on('message', (msg) => {
+  bot.on('message', async (msg) => {
     const chatId = msg.chat.id
 
     //ask save name of validator to history or no
@@ -53,9 +53,9 @@ function attachHandlers(bot) {
               remove_keyboard: true,
             },
           })
-          .then((message) => {
-            bot.deleteMessage(chatId, message.message_id) //delete message
-            bot.sendMessage(chatId, 'Choose the button:', {
+          .then(async (message) => {
+            await bot.deleteMessage(chatId, message.message_id) //delete message
+            await bot.sendMessage(chatId, 'Choose the button:', {
               //send new with Menu keyboards
               reply_markup: callbackButtonForStartCommand(),
             })
@@ -169,16 +169,16 @@ function attachHandlers(bot) {
 
             logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${valName}`)
           })
-          .catch((err) => {
+          .catch(async (err) => {
             console.log(err)
-            bot.sendMessage(chatId, "❗ Can't find validator.", {
+            await bot.sendMessage(chatId, "❗ Can't find validator.", {
               reply_markup: { inline_keyboard: backReply() },
             })
             logger.warn(`User ${msg.from.username} (${msg.from.id}) Can't find validator for ${valName}`)
           })
         return
       } else {
-        bot.sendMessage(chatId, 'Select a valid value', {
+        await bot.sendMessage(chatId, 'Select a valid value', {
           reply_markup: { inline_keyboard: backReply() },
         })
       }
@@ -194,24 +194,60 @@ function attachHandlers(bot) {
           waitingForValidatorNameForWsConnection.set(chatId, { status: false }) //close wating if were push one of tg commands
           return
         }
+
+        const validatorInfo = await showCurrentState(validatorName)
+        if (!validatorInfo) {
+          await bot.sendMessage(chatId, "❗ Can't find validator.", {
+            reply_markup: { inline_keyboard: backReply() },
+          })
+          return
+        }
         waitingForValidatorNameForWsConnection.set(chatId, { ...wsValData, valName: validatorName, status: false })
 
-        bot
-          .sendMessage(chatId, 'Select amount of tokens:', {
-            reply_markup: callbackButtonSizeOfTokens(),
-          })
-          .then(() => {
-            waitingForSizeOfTokensForWs.set(chatId, true)
-          })
+        if (wsValData.type === 'epoch_reward') {
+          const type = wsValData.type
+          const validatoraddress = validatorInfo.suiAddress
+          const sizeOfTokens = 'All'
+
+          handleInitSubscription(bot, chatId, validatoraddress, validatorName, type, sizeOfTokens)
+            .then(async () => {
+              waitingForSizeOfTokensForWs.set(chatId, false)
+
+              await bot.deleteMessage(chatId, wsValData.msgId)
+
+              bot.sendMessage(chatId, `Event for ${validatorName} has been added ✅`, {
+                reply_markup: subscribeKeyBoard(),
+              })
+            })
+            .catch(() => {
+              bot.sendMessage(
+                chatId,
+                `This event has already been added for ${validatorName}❗️\n\n If you want change, please unsubscribe from old one.`,
+                {
+                  reply_markup: subscribeKeyBoard(),
+                },
+              )
+            })
+
+          logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${validatorName}`)
+        } else {
+          bot
+            .sendMessage(chatId, 'Select amount of tokens:', {
+              reply_markup: callbackButtonSizeOfTokens(),
+            })
+            .then(() => {
+              waitingForSizeOfTokensForWs.set(chatId, true)
+            })
+        }
 
         return
       }
     }
   })
 
-  bot.onText(new RegExp('/start'), (msg) => {
+  bot.onText(new RegExp('/start'), async (msg) => {
     const chatId = msg.chat.id
-    bot.sendMessage(
+    await bot.sendMessage(
       chatId,
       "Welcome! I'll help you get the validator information. Choose a button to get infromation about validator.",
       { reply_markup: callbackButtonForStartCommand() },
@@ -220,9 +256,9 @@ function attachHandlers(bot) {
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
   })
 
-  bot.onText(new RegExp('/menu'), (msg) => {
+  bot.onText(new RegExp('/menu'), async (msg) => {
     const chatId = msg.chat.id
-    bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForStartCommand() })
+    await bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForStartCommand() })
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
   })
 
@@ -254,17 +290,19 @@ function attachHandlers(bot) {
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /valinfo command`)
   })
 
-  bot.onText(new RegExp('/stakenotify'), (msg) => {
+  bot.onText(new RegExp('/stakenotify'), async (msg) => {
     const chatId = msg.chat.id
-    bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
+
+    handleStartCommand(chatId, msg) //added this because of issue when user blocked bot and data was delete from db, whith this we can add data to db without start command
+
+    await bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
       reply_markup: subscribeKeyBoard(),
     })
 
-    handleStartCommand(chatId, msg) //added this because of issue when user blocked bot and data was delete from db, whith this we can add data to db without start command
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /stakenotify command`)
   })
 
-  bot.onText(new RegExp('/rewards'), (msg) => {
+  bot.onText(new RegExp('/rewards'), async (msg) => {
     const chatId = msg.chat.id
     const arrayOfValidatorsName = listOfAddedValidatorNames.get(chatId)
 
@@ -277,17 +315,17 @@ function attachHandlers(bot) {
         })
         .then(() => waitingValidatorNameForRewards.set(chatId, true))
     } else {
-      bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForMainMenu() }).then(() => {
+      await bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForMainMenu() }).then(() => {
         waitingValidatorNameForRewards.set(chatId, true)
       })
     }
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /rewards command`)
   })
 
-  bot.onText(new RegExp('/gasprice'), (msg) => {
+  bot.onText(new RegExp('/gasprice'), async (msg) => {
     const chatId = msg.chat.id
 
-    handleGetPrice(bot, chatId)
+    await handleGetPrice(bot, chatId)
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /gasprice command`)
   })
@@ -297,6 +335,7 @@ function attachHandlers(bot) {
     const msgId = callbackQuery.message.message_id
     const callBackData = callbackQuery.data
     const msg = callbackQuery.message
+    const userData = callbackQuery.from
 
     //set all waitng to false
     waitingForValidatorName.set(chatId, false)
@@ -319,10 +358,10 @@ function attachHandlers(bot) {
 
     switch (action) {
       case 'set_stake_notify':
-        handleStartCommand(chatId, msg) //added this because of issue when user blocked bot and data was delete from db, whith this we can add data to db without start command
+        handleStartCommand(chatId, userData) //added this because of issue when user blocked bot and data was delete from db, whith this we can add data to db without start command
 
         bot
-          .editMessageText('Subscribe to stake/unstake events. Choose event.', {
+          .editMessageText('Subscribe to staking events. Choose event.', {
             chat_id: chatId,
             message_id: msgId,
             reply_markup: subscribeKeyBoard(),
@@ -358,7 +397,7 @@ function attachHandlers(bot) {
               waitingForValidatorName.set(chatId, true)
             })
         }
-        bot.answerCallbackQuery(callbackQuery.id)
+        await bot.answerCallbackQuery(callbackQuery.id)
 
         break
 
@@ -384,14 +423,14 @@ function attachHandlers(bot) {
               waitingValidatorNameForRewards.set(chatId, true)
             })
         }
-        bot.answerCallbackQuery(callbackQuery.id)
+        await bot.answerCallbackQuery(callbackQuery.id)
 
         break
 
       case 'show_gas_price':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_gas_price (Show Gas Price)`)
         await handleGetPrice(bot, chatId)
-        bot.answerCallbackQuery(callbackQuery.id)
+        await bot.answerCallbackQuery(callbackQuery.id)
 
         break
 
@@ -403,13 +442,30 @@ function attachHandlers(bot) {
           .sendMessage(chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
-          .then((msg) => {
+          .then(async (msg) => {
             waitingForValidatorNameForWsConnection.set(chatId, {
               status: true,
               type: 'delegate',
               msgId: msg.message_id,
             })
-            bot.answerCallbackQuery(callbackQuery.id)
+            await bot.answerCallbackQuery(callbackQuery.id)
+          })
+
+        break
+      case 'epoch_reward':
+        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Event)`)
+
+        bot
+          .sendMessage(chatId, 'Input validator name:', {
+            reply_markup: { inline_keyboard: backReply() },
+          })
+          .then(async (msg) => {
+            waitingForValidatorNameForWsConnection.set(chatId, {
+              status: true,
+              type: 'epoch_reward',
+              msgId: msg.message_id,
+            })
+            await bot.answerCallbackQuery(callbackQuery.id)
           })
 
         break
@@ -424,13 +480,13 @@ function attachHandlers(bot) {
           .sendMessage(chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
-          .then((msg) => {
+          .then(async (msg) => {
             waitingForValidatorNameForWsConnection.set(chatId, {
               status: true,
               type: 'undelegate',
               msgId: msg.message_id, //add id of message for delete it
             })
-            bot.answerCallbackQuery(callbackQuery.id)
+            await bot.answerCallbackQuery(callbackQuery.id)
           })
 
         break
@@ -439,8 +495,8 @@ function attachHandlers(bot) {
         logger.info(
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used check_active_subscriptions (Check List of Subscriptions)`,
         )
-        handleTotalSubscriptions(bot, chatId, msg)
-        bot.answerCallbackQuery(callbackQuery.id)
+        await handleTotalSubscriptions(bot, chatId, msg)
+        await bot.answerCallbackQuery(callbackQuery.id)
         break
 
       //delete active subscriptions
@@ -453,13 +509,13 @@ function attachHandlers(bot) {
         const typeOfSubscription = callbackQuery.data.split(':')[2] //get third value of split it should be type of subscription
 
         handleUnsubscribeFromStakeEvents(chatId, valNameForUnsubscribe, typeOfSubscription)
-          .then(() => {
+          .then(async () => {
             bot.editMessageText('✅ Done!', {
               chat_id: chatId,
               message_id: msg.message_id,
               reply_markup: subscribeKeyBoard(),
             })
-            bot.answerCallbackQuery(callbackQuery.id)
+            await bot.answerCallbackQuery(callbackQuery.id)
           })
           .catch((err) => {
             console.log(err)
@@ -481,7 +537,7 @@ function attachHandlers(bot) {
         waitingForValidatorNameForWsConnection.set(chatId, { status: false })
 
         bot
-          .editMessageText('Subscribe to stake events. Choose event.', {
+          .editMessageText('Subscribe to staking events. Choose event.', {
             chat_id: chatId,
             message_id: msg.message_id,
             reply_markup: subscribeKeyBoard(),
@@ -539,7 +595,7 @@ function attachHandlers(bot) {
             bot.sendMessage(chatId, `The value for ${key} is: ${value}`).then(() => bot.answerCallbackQuery(callbackQuery.id))
           })
         } else {
-          bot.answerCallbackQuery(callbackQuery.id, "Didn't find data")
+          await bot.answerCallbackQuery(callbackQuery.id, "Didn't find data")
         }
 
         break
@@ -578,7 +634,7 @@ function attachHandlers(bot) {
                 parse_mode: 'Markdown',
               },
             )
-            bot.answerCallbackQuery(callbackQuery.id)
+            await bot.answerCallbackQuery(callbackQuery.id)
             logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
           })
           .catch(() => {})

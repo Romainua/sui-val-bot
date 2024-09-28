@@ -5,7 +5,8 @@ function subscribeKeyBoard() {
         { text: 'Stake 🟢', callback_data: 'delegation' },
         { text: 'Unstake 🔴', callback_data: 'undelegation' },
       ],
-      [{ text: 'Check active subscriptions', callback_data: 'check_active_subscriptions' }],
+      [{ text: 'Epoch Reward 🏅', callback_data: 'epoch_reward' }],
+      [{ text: 'Check Active Subscriptions 📋', callback_data: 'check_active_subscriptions' }],
       [{ text: '⬅ Back', callback_data: 'main_menu' }],
     ],
   }
@@ -26,7 +27,7 @@ function unsubscribeCallBackButton(subscriptionsArray) {
   const callBackObjectButton = subscriptionsArray.map((obj) => {
     return [
       {
-        text: `${obj.text} ${obj.type === 'delegate' ? '🟢' : '🔴'}`,
+        text: `${obj.text} ${obj.type === 'delegate' ? '🟢' : obj.type === 'undelegate' ? '🔴' : '🟠'}`,
         callback_data: `stake_unsubscribe:${obj.name}:${obj.type}`,
       },
     ]

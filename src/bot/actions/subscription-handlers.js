@@ -72,19 +72,15 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
   )
 
   if (!isCacheHasEvent) {
-    try {
-      handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens)
+    handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens)
 
-      await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens)
+    await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens)
 
-      await handleSubscruptions(bot, chatId)
+    await handleSubscruptions(bot, chatId)
 
-      return Promise.resolve()
-    } catch {
-      return Promise.reject()
-    }
+    return Promise.resolve()
   } else {
-    return Promise.reject()
+    return Promise.reject('This type of subscription already exists')
   }
 }
 
@@ -94,11 +90,13 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
     userSubscriptions[chatId] = [] //if current chat id doesn't exist init empty array for objects with subscribe data
   }
 
+  const eventType = type === 'delegate' ? 'Stake' : type === 'undelegate' ? 'Unstake' : 'Reward'
+
   const subscribeData = {
     ws: null,
     name: valName,
-    type: type === 'delegate' ? 'delegate' : 'undelegate',
-    text: `Unsubscribe from ${type === 'delegate' ? 'Stake' : 'Unstake'} event for ${valName}`,
+    type: type,
+    text: `Event: ${eventType} ➖ Validator: ${valName}`,
     address: valAddress,
     tokenSize: sizeOfTokens,
     subscribeId: null,
@@ -123,8 +121,8 @@ async function handleSubscruptions(bot, chatId) {
           const parsedData = JSON.parse(data)
 
           if ('error' in parsedData) {
-            logger.error(`Error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
             ws.close()
+            logger.error(`Error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
             logger.error(JSON.stringify(parsedData, null, 2))
 
             setTimeout(() => {
@@ -143,9 +141,7 @@ async function handleSubscruptions(bot, chatId) {
               `Success unsubscribed. Validator: ${subscription.name} Type: ${subscription.type} Result: ${parsedData.result}`,
             )
           } else {
-            logger.warn(
-              `Unexpected error in response from ws request. Validator: ${subscription.name} Type: ${subscription.type}`,
-            )
+            logger.warn(`Unexpected response from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
             logger.warn(JSON.stringify(parsedData, null, 2))
           }
         })
@@ -259,7 +255,7 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
 
 async function handleTotalSubscriptions(bot, chatId, msg) {
   if (userSubscriptions[chatId]) {
-    bot.editMessageText('Choose for unsubscribe.', {
+    bot.editMessageText('Click a button below to unsubscribe from specific event.\nYou can re-enable them anytime.', {
       chat_id: chatId,
       message_id: msg.message_id,
       reply_markup: {
