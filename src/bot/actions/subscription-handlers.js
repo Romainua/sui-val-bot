@@ -4,6 +4,7 @@ import createWebSocketConnection from '../../api-interaction/subscribe.js'
 import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/keyboard.js'
 import WebSocket from 'ws'
 import messageHandler from './message-handler.js'
+import getAmountOfTokens from '../../utils/getTokenAmountString.js'
 
 const userSubscriptions = [] //list of all active Subscriptions
 
@@ -92,11 +93,13 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
 
   const eventType = type === 'delegate' ? 'Stake' : type === 'undelegate' ? 'Unstake' : 'Reward'
 
+  const stringedAmount = getAmountOfTokens(sizeOfTokens)
+
   const subscribeData = {
     ws: null,
     name: valName,
     type: type,
-    text: `Event: ${eventType} ➖ Validator: ${valName}`,
+    text: `👤 ${valName} | 💵 ${stringedAmount} | ${eventType}`,
     address: valAddress,
     tokenSize: sizeOfTokens,
     subscribeId: null,

@@ -63,7 +63,7 @@ export default async function messageHandler(bot, chatId, subscription, data) {
   const epochChangeSender = `0x0000000000000000000000000000000000000000000000000000000000000000`
 
   //if sender is epoch changing
-  if (parsedData?.params?.result?.sender === epochChangeSender) {
+  if (parsedData?.params?.result?.sender === epochChangeSender && reducedAmount >= sizeOfTokens) {
     const message = `\n🔄 The epoch has changed.\n\n📈 Validator Rewards:\n- Validator: ${valName}\n- Epoch Number: ${epoch}\n- Reward Amount: ${formattedPrincipal} SUI\n\nKeep up the great work! 🚀`
 
     await messageSender(bot, chatId, message, subscription)

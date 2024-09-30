@@ -456,7 +456,7 @@ function attachHandlers(bot) {
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Event)`)
 
         bot
-          .sendMessage(chatId, 'Input validator name:', {
+          .sendMessage(chatId, 'The bot will notify you about earned rewards for past epoch.\n\nInput validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
           .then(async (msg) => {
