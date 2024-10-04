@@ -1,5 +1,6 @@
 function subscribeKeyBoard() {
   return {
+    remove_keyboard: true,
     inline_keyboard: [
       [
         { text: 'Stake 🟢', callback_data: 'delegation' },
@@ -62,6 +63,14 @@ function callbackButtonSizeOfTokens() {
   }
 }
 
+function callbackButtonForIncludeEpochReward() {
+  return {
+    keyboard: [['Yes', 'No']],
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  }
+}
+
 export {
   subscribeKeyBoard,
   backReply,
@@ -69,4 +78,5 @@ export {
   callbackButtonForStartCommand,
   backReplyForMainMenu,
   callbackButtonSizeOfTokens,
+  callbackButtonForIncludeEpochReward,
 }

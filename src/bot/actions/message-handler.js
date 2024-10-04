@@ -4,6 +4,7 @@ import messageSender from '../../../src/utils/message-sender.js'
 export default async function messageHandler(bot, chatId, subscription, data) {
   const valName = subscription.name
   const sizeOfTokens = Number(subscription.tokenSize)
+  const isEpochReward = subscription.isEpochReward
 
   const parsedData = JSON.parse(data) //convert answer to json
 
@@ -63,15 +64,15 @@ export default async function messageHandler(bot, chatId, subscription, data) {
   const epochChangeSender = `0x0000000000000000000000000000000000000000000000000000000000000000`
 
   //if sender is epoch changing
-  if (parsedData?.params?.result?.sender === epochChangeSender && reducedAmount >= sizeOfTokens) {
+  if (parsedData?.params?.result?.sender === epochChangeSender && isEpochReward) {
     const message = `\n🔄 The epoch has changed.\n\n📈 Validator Rewards:\n- Validator: ${valName}\n- Epoch Number: ${epoch}\n- Reward Amount: ${formattedPrincipal} SUI\n\nKeep up the great work! 🚀`
 
-    await messageSender(bot, chatId, message, subscription)
+    messageSender(bot, chatId, message, subscription)
   } else if (reducedAmount >= sizeOfTokens) {
     const meesage = ` ${
       type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
     } ${valName}\nAmount: ${formattedPrincipal} SUI\ntx link: https://explorer.sui.io/txblock/${tx}`
 
-    await messageSender(bot, chatId, meesage, subscription)
+    messageSender(bot, chatId, meesage, subscription)
   }
 }

@@ -55,7 +55,7 @@ async function handleInitRestorSubscriptions(bot) {
     })
 }
 
-async function handleInitSubscription(bot, chatId, valAddress, validatorName, type, sizeOfTokens) {
+async function handleInitSubscription(bot, chatId, valAddress, validatorName, type, sizeOfTokens, isEpochReward = false) {
   const amountOfTokens =
     sizeOfTokens === '100+'
       ? 100
@@ -73,9 +73,9 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
   )
 
   if (!isCacheHasEvent) {
-    handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens)
+    handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens, isEpochReward)
 
-    await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens)
+    await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens, isEpochReward)
 
     await handleSubscruptions(bot, chatId)
 
@@ -86,7 +86,7 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
 }
 
 //save subscription data to cache
-async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, sizeOfTokens) {
+async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, sizeOfTokens, isEpochReward) {
   if (!userSubscriptions[chatId]) {
     userSubscriptions[chatId] = [] //if current chat id doesn't exist init empty array for objects with subscribe data
   }
@@ -103,6 +103,7 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
     address: valAddress,
     tokenSize: sizeOfTokens,
     subscribeId: null,
+    isEpochReward: isEpochReward,
   }
   userSubscriptions[chatId].push(subscribeData) //add subscription data to user array
 }
@@ -184,7 +185,7 @@ async function handleSubscruptions(bot, chatId) {
 }
 
 //handling save subscriptions to db
-async function handleSaveSubscribesToDB(chatId, validatorName, type, address, sizeOfTokens) {
+async function handleSaveSubscribesToDB(chatId, validatorName, type, address, sizeOfTokens, isEpochReward) {
   try {
     const dataBaseClient = new ClientDb()
 
@@ -195,6 +196,7 @@ async function handleSaveSubscribesToDB(chatId, validatorName, type, address, si
       type: type,
       address: address,
       tokenSize: sizeOfTokens,
+      isEpochReward,
     }
 
     await dataBaseClient.insertSubscribeData(chatId, subscribeValue)
@@ -208,7 +210,7 @@ async function handleSaveSubscribesToDB(chatId, validatorName, type, address, si
 }
 
 //handling drop subscriptions from db
-async function handleDropSubscriptionFromDB(chatId, validatorName, type, address, tokenSize) {
+async function handleDropSubscriptionFromDB(chatId, validatorName, type, address, tokenSize, isEpochReward) {
   try {
     const dataBaseClient = new ClientDb()
 
@@ -219,6 +221,7 @@ async function handleDropSubscriptionFromDB(chatId, validatorName, type, address
       type: type,
       address: address,
       tokenSize,
+      isEpochReward,
     }
 
     await dataBaseClient.deleteSubscribeData(chatId, subscribeValue)
@@ -243,8 +246,10 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
       const ws = userSubscriptions[chatId][index].ws
       const subscriptionId = userSubscriptions[chatId][index].subscribeId
       const tokenSize = userSubscriptions[chatId][index].tokenSize
+      const isEpochReward = userSubscriptions[chatId][index].isEpochReward
+
       //drop subscriptions from db
-      handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize).then(() => {
+      handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize, isEpochReward).then(() => {
         //send unsubscribe requests with id of subscription
         ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
         //remove from cache after success delete from db
