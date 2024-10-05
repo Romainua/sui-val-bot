@@ -30,6 +30,7 @@ async function handleInitRestorSubscriptions(bot) {
             const valName = subscription.name
             const type = subscription.type
             const sizeOfTokens = subscription.tokenSize || 'All'
+            const isEpochReward = type === 'delegate' ? subscription.isEpochReward || true : false
             const amountOfTokens =
               sizeOfTokens === 100
                 ? 100
@@ -41,7 +42,7 @@ async function handleInitRestorSubscriptions(bot) {
                 ? 100000
                 : 0
 
-            await handleSaveSubscriptionToCache(chatId, valAddress, valName, type, amountOfTokens) //save subscriptions data to cache
+            await handleSaveSubscriptionToCache(chatId, valAddress, valName, type, amountOfTokens, isEpochReward) //save subscriptions data to cache
 
             await handleSubscruptions(bot, chatId)
 
@@ -55,7 +56,7 @@ async function handleInitRestorSubscriptions(bot) {
     })
 }
 
-async function handleInitSubscription(bot, chatId, valAddress, validatorName, type, sizeOfTokens, isEpochReward = false) {
+async function handleInitSubscription(bot, chatId, valAddress, validatorName, type, sizeOfTokens, isEpochReward = true) {
   const amountOfTokens =
     sizeOfTokens === '100+'
       ? 100

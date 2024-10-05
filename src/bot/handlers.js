@@ -15,6 +15,7 @@ import {
   backReplyForMainMenu,
   callbackButtonSizeOfTokens,
   callbackButtonForIncludeEpochReward,
+  callbackButtonWebsite,
 } from './keyboards/keyboard.js'
 import initEventsSubscribe from '../utils/initEventsSubscribe.js'
 
@@ -230,7 +231,7 @@ function attachHandlers(bot) {
     const chatId = msg.chat.id
     bot.sendMessage(
       chatId,
-      "Welcome! I'll help you get the validator information. Choose a button to get infromation about validator.",
+      'Hello and welcome! 🎉 I’m here to help you stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
       { reply_markup: callbackButtonForStartCommand() },
     )
     handleStartCommand(chatId, msg)
@@ -536,6 +537,20 @@ function attachHandlers(bot) {
             logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
           })
           .catch(() => {})
+
+        break
+
+      case 'view_all_events_history':
+        bot
+          .editMessageText('Browse all events with custom filters 🔍', {
+            chat_id: chatId,
+            message_id: msgId,
+            reply_markup: callbackButtonWebsite(),
+          })
+          .then(() => bot.answerCallbackQuery(callbackQuery.id))
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called view_all_events_history (View All Events History, open website or mini app)`,
+        )
 
         break
 

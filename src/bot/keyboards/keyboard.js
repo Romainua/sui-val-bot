@@ -51,6 +51,7 @@ function callbackButtonForStartCommand() {
         { text: 'Show Rewards 🏆', callback_data: 'show_rewards' },
         { text: 'Show Gas Price ⛽', callback_data: 'show_gas_price' },
       ],
+      [{ text: 'View All Events History 📊', callback_data: 'view_all_events_history' }],
     ],
   }
 }
@@ -71,6 +72,19 @@ function callbackButtonForIncludeEpochReward() {
   }
 }
 
+function callbackButtonWebsite() {
+  const url = 'https://valstat.xyz/events'
+  return {
+    inline_keyboard: [
+      [
+        { text: 'Open Mini App', web_app: { url: url } },
+        { text: 'Open Website', url: url },
+      ],
+      [{ text: '⬅ Back', callback_data: 'main_menu' }],
+    ],
+  }
+}
+
 export {
   subscribeKeyBoard,
   backReply,
@@ -79,4 +93,5 @@ export {
   backReplyForMainMenu,
   callbackButtonSizeOfTokens,
   callbackButtonForIncludeEpochReward,
+  callbackButtonWebsite,
 }
