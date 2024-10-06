@@ -1,6 +1,5 @@
 function subscribeKeyBoard() {
   return {
-    remove_keyboard: true,
     inline_keyboard: [
       [
         { text: 'Stake 🟢', callback_data: 'delegation' },

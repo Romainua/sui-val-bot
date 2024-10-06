@@ -504,7 +504,7 @@ function attachHandlers(bot) {
         break
 
       case 'main_menu':
-        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Main Menu)`)
+        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (back to Main Menu)`)
         bot
           .editMessageText('Menu. Choose a button.', {
             chat_id: chatId,
