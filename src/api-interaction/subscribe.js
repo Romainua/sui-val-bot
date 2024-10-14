@@ -1,14 +1,14 @@
 import WebSocket from 'ws'
-import dotenv from 'dotenv'
-import { stakingEventsRequest, epochChangeEventRequest } from './request.js'
-import logger from '../bot/handle-logs/logger.js'
+import { stakingEventsRequest, epochChangeEventRequest } from './requests.js'
+import logger from '../utils/handle-logs/logger.js'
 
-dotenv.config()
+const WS_URL = process.env.WEBSOCKET_URL
 
 async function initWsConnection() {
-  const ws = new WebSocket(process.env.WEBSOCKET_apiUrl)
+  const ws = new WebSocket(WS_URL)
   return ws
 }
+
 //connection for stake events
 async function createWebSocketConnection(validatorAddress, type) {
   const ws = await initWsConnection()

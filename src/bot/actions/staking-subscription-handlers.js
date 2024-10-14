@@ -1,24 +1,18 @@
 import ClientDb from '../../db-interaction/db-hendlers.js'
-import logger from '../handle-logs/logger.js'
+import logger from '../../utils/handle-logs/logger.js'
 import createWebSocketConnection from '../../api-interaction/subscribe.js'
 import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/keyboard.js'
 import WebSocket from 'ws'
-import messageHandler from './message-handler.js'
+import messageHandler from '../../lib/msg-handlers/staking-msg-handler.js'
 import getAmountOfTokens from '../../utils/getTokenAmountString.js'
 
 const userSubscriptions = [] //list of all active Subscriptions
 
 async function handleInitRestorSubscriptions(bot) {
-  const dataBaseClient = new ClientDb()
+  await ClientDb.createTableIfNotExists()
 
-  await dataBaseClient.connect()
-  await dataBaseClient.createTableIfNotExists()
-
-  dataBaseClient
-    .getAllData()
+  ClientDb.getAllData()
     .then(async (usersData) => {
-      await dataBaseClient.end()
-
       for (const dataUser of usersData) {
         const subscribe_data = dataUser.subscribe_data
 
@@ -157,25 +151,24 @@ async function handleSubscruptions(bot, chatId) {
         })
 
         ws.on('close', async function close() {
-          logger.warn('Web Socket connection closed. Reopening...')
           //if subscription data was remove from cache, try to find if NaN connection won't open because user remove it from cache
           //check if cache already has subscription data
           const isCacheHasEvent = userSubscriptions[chatId].find(
             (subscriptionObject) => subscriptionObject.address === valAddress && subscriptionObject.type === type,
           )
-          const dataBaseClient = new ClientDb()
 
-          await dataBaseClient.connect()
-
-          const isDbHasData = await dataBaseClient.getUserData(chatId)
-
-          await dataBaseClient.end()
+          const isDbHasData = await ClientDb.getUserData(chatId)
 
           if (isCacheHasEvent && isDbHasData.length > 0) {
+            logger.warn('Web Socket connection closed. Reopening...')
             subscription.ws = null
             setTimeout(() => {
               opensWs(subscription, bot, chatId)
             }, 5000)
+          } else {
+            logger.warn('Web Socket connection closed.')
+            subscription.ws = null
+            return
           }
         })
       }
@@ -188,10 +181,6 @@ async function handleSubscruptions(bot, chatId) {
 //handling save subscriptions to db
 async function handleSaveSubscribesToDB(chatId, validatorName, type, address, sizeOfTokens, isEpochReward) {
   try {
-    const dataBaseClient = new ClientDb()
-
-    await dataBaseClient.connect()
-
     const subscribeValue = {
       name: validatorName,
       type: type,
@@ -200,9 +189,7 @@ async function handleSaveSubscribesToDB(chatId, validatorName, type, address, si
       isEpochReward,
     }
 
-    await dataBaseClient.insertSubscribeData(chatId, subscribeValue)
-
-    await dataBaseClient.end()
+    await ClientDb.insertSubscribeData(chatId, subscribeValue)
 
     logger.info(`Data: ${JSON.stringify(subscribeValue)} saved to db ${chatId}`)
   } catch (error) {
@@ -213,10 +200,6 @@ async function handleSaveSubscribesToDB(chatId, validatorName, type, address, si
 //handling drop subscriptions from db
 async function handleDropSubscriptionFromDB(chatId, validatorName, type, address, tokenSize, isEpochReward) {
   try {
-    const dataBaseClient = new ClientDb()
-
-    await dataBaseClient.connect()
-
     const subscribeValue = {
       name: validatorName,
       type: type,
@@ -225,9 +208,7 @@ async function handleDropSubscriptionFromDB(chatId, validatorName, type, address
       isEpochReward,
     }
 
-    await dataBaseClient.deleteSubscribeData(chatId, subscribeValue)
-
-    await dataBaseClient.end()
+    await ClientDb.deleteSubscribeData(chatId, subscribeValue)
 
     logger.info(`Data: ${JSON.stringify(subscribeValue)} deleted from db ${chatId}`)
   } catch (error) {
@@ -255,6 +236,8 @@ async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
         ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
         //remove from cache after success delete from db
         userSubscriptions[chatId].splice(index, 1)
+        // close ws connection
+        ws.close()
       })
 
       logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)

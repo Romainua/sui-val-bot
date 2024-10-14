@@ -4,10 +4,10 @@ import {
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
   handleInitSubscription,
-} from './actions/subscription-handlers.js'
+} from './actions/staking-subscription-handlers.js'
 
 import { showCurrentState } from '../api-interaction/system-state.js'
-import logger from './handle-logs/logger.js'
+import logger from '../utils/handle-logs/logger.js'
 import {
   subscribeKeyBoard,
   backReply,
@@ -18,6 +18,8 @@ import {
   callbackButtonWebsite,
 } from './keyboards/keyboard.js'
 import initEventsSubscribe from '../utils/initEventsSubscribe.js'
+import discordForwarder from '../lib/discord/discord-forwarder.js'
+import { updateAnnouncementSubscription, handleDiscordAnnouncementCommand } from './actions/discord-annc-handler.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
@@ -229,6 +231,7 @@ function attachHandlers(bot) {
 
   bot.onText(new RegExp('/start'), (msg) => {
     const chatId = msg.chat.id
+    discordForwarder(bot, chatId)
     bot.sendMessage(
       chatId,
       'Hello and welcome! 🎉 I’m here to help you stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
@@ -291,7 +294,6 @@ function attachHandlers(bot) {
     const msgId = callbackQuery.message.message_id
     const callBackData = callbackQuery.data
     const msg = callbackQuery.message
-    const userData = callbackQuery.from
 
     //set all waitng to false
     waitingForValidatorName.set(chatId, false)
@@ -302,7 +304,6 @@ function attachHandlers(bot) {
 
     let action
     let callbackData
-
     try {
       callbackData = JSON.parse(callBackData)
       action = callbackData.type
@@ -406,10 +407,6 @@ function attachHandlers(bot) {
 
       //unstake subscription
       case 'undelegation':
-        logger.info(
-          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used undelegation (Subscribe to Unstake Event)`,
-        )
-
         bot
           .sendMessage(chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
@@ -421,6 +418,10 @@ function attachHandlers(bot) {
             })
             bot.answerCallbackQuery(callbackQuery.id)
           })
+
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used undelegation (Subscribe to Unstake Event)`,
+        )
 
         break
 
@@ -434,10 +435,6 @@ function attachHandlers(bot) {
 
       //delete active subscriptions
       case 'stake_unsubscribe':
-        logger.info(
-          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used stake_unsubscribe (Unsubsctibe From Active Subscriptions)`,
-        )
-
         const valNameForUnsubscribe = callbackQuery.data.split(':')[1] //get second value of split it should be val name
         const typeOfSubscription = callbackQuery.data.split(':')[2] //get third value of split it should be type of subscription
 
@@ -451,13 +448,19 @@ function attachHandlers(bot) {
             bot.answerCallbackQuery(callbackQuery.id)
           })
           .catch((err) => {
-            console.log(err)
-            bot.editMessageText("⛔ Can't find subscription. ", {
+            logger.error(
+              `Error handle unsubscribe, validator: ${valNameForUnsubscribe} type: ${typeOfSubscription} user: ${callbackQuery.from.id}, Error: ${err}`,
+            )
+            bot.editMessageText("⛔ Can't find subscription.", {
               chat_id: chatId,
               message_id: msg.message_id,
               reply_markup: subscribeKeyBoard(),
             })
           })
+
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used stake_unsubscribe (Unsubsctibe From Active Subscriptions), validator: ${valNameForUnsubscribe} type: ${typeOfSubscription}`,
+        )
 
         break
 
@@ -552,6 +555,30 @@ function attachHandlers(bot) {
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called view_all_events_history (View All Events History, open website or mini app)`,
         )
 
+        break
+
+      case 'discord_announcements':
+        handleDiscordAnnouncementCommand(bot, chatId, msgId).then(() => {
+          bot.answerCallbackQuery(callbackQuery.id)
+        })
+
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called discord_announcements (Subscribe To Discord Announcements)`,
+        )
+        break
+      case 'update_discord_announcements':
+        const channel = callbackQuery.data.split(':')[1]
+
+        try {
+          await updateAnnouncementSubscription(bot, chatId, msgId, channel)
+        } catch (err) {
+          await bot.sendMessage(chatId, `${err.message}`)
+        } finally {
+          await bot.answerCallbackQuery(callbackQuery.id)
+        }
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called drop_discord_announcements (Drop Discord Announcements Subscription)`,
+        )
         break
 
       default:

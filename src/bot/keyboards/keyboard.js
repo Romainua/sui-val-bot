@@ -50,6 +50,7 @@ function callbackButtonForStartCommand() {
         { text: 'Show Rewards 🏆', callback_data: 'show_rewards' },
         { text: 'Show Gas Price ⛽', callback_data: 'show_gas_price' },
       ],
+      [{ text: 'Subscribe To Discord Announcements 📢', callback_data: 'discord_announcements' }],
       [{ text: 'View All Events History 📊', callback_data: 'view_all_events_history' }],
     ],
   }
@@ -84,6 +85,31 @@ function callbackButtonWebsite() {
   }
 }
 
+function callbackButtonForDiscordNotVerify(chatId) {
+  const OAuth2_URL = `https://discord.com/oauth2/authorize?client_id=1294363954788827146&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A3001%2Fauth%2Fdiscord%2Fcallback&scope=guilds.members.read&state=${chatId}`
+  return {
+    inline_keyboard: [
+      [{ text: 'Verify Discord Role', url: OAuth2_URL }],
+      [{ text: '⬅ Back to Main Menu', callback_data: 'main_menu' }],
+    ],
+  }
+}
+
+function callbackButtonForDiscordVerified(listOfSubscriptions) {
+  const keyboard = listOfSubscriptions.map((obj) => ({
+    text: obj.name + ` (${obj.status === true ? 'ON ✅' : 'OFF ❌'})`,
+    callback_data: `update_discord_announcements:${obj.channelId}`,
+  }))
+
+  return {
+    inline_keyboard: [
+      keyboard,
+      // [{ text: '🔧 Manage Subscriptions', callback_data: 'manage_discrod_announcements' }],
+      [{ text: '⬅ Back to Main Menu', callback_data: 'main_menu' }],
+    ],
+  }
+}
+
 export {
   subscribeKeyBoard,
   backReply,
@@ -93,4 +119,6 @@ export {
   callbackButtonSizeOfTokens,
   callbackButtonForIncludeEpochReward,
   callbackButtonWebsite,
+  callbackButtonForDiscordVerified,
+  callbackButtonForDiscordNotVerify,
 }

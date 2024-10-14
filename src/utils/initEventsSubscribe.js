@@ -1,4 +1,4 @@
-import { handleInitSubscription } from '../bot/actions/subscription-handlers.js'
+import { handleInitSubscription } from '../bot/actions/staking-subscription-handlers.js'
 import { subscribeKeyBoard } from '../bot/keyboards/keyboard.js'
 
 export default function initEventsSubscribe(

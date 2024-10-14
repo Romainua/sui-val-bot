@@ -2,7 +2,8 @@ import fetch from 'node-fetch'
 import dotenv from 'dotenv'
 
 dotenv.config()
-const apiUrl = process.env.apiUrl
+
+const API_URL = process.env.API_URL
 
 async function fetchValidatorsInfo() {
   const requestBody = {
@@ -11,7 +12,7 @@ async function fetchValidatorsInfo() {
     method: 'suix_getLatestSuiSystemState',
   }
 
-  const response = await fetch(apiUrl, {
+  const response = await fetch(API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

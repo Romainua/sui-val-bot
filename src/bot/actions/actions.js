@@ -1,6 +1,6 @@
 import { getGasPrice, showCurrentState } from '../../api-interaction/system-state.js'
 import ClientDb from '../../db-interaction/db-hendlers.js'
-import logger from '../handle-logs/logger.js'
+import logger from '../../utils/handle-logs/logger.js'
 import valInfoKeyboard from '../keyboards/val-info-keyboard.js'
 import getStakingPoolIdObjectsByName from '../../api-interaction/validator-cap.js'
 import { callbackButtonForStartCommand } from '../keyboards/keyboard.js'
@@ -8,6 +8,7 @@ import { callbackButtonForStartCommand } from '../keyboards/keyboard.js'
 async function handleGetPrice(bot, chatId) {
   try {
     const { selectedValidators, currentVotingPower } = await getGasPrice()
+
     const formattedValidatorsInfo = selectedValidators
       .map(({ name, nextEpochGasPrice, votingPower }, index) => `${index + 1} ${name}: ${nextEpochGasPrice}, vp – ${votingPower}`)
       .join('\n')
@@ -73,17 +74,11 @@ async function handleStakedSuiObjectsByName(address) {
 
 async function handleStartCommand(chatId, msg) {
   try {
-    const dataBaseClient = new ClientDb()
-
-    await dataBaseClient.connect()
-
-    await dataBaseClient.createTableIfNotExists()
+    await ClientDb.createTableIfNotExists()
 
     const userData = msg.from
 
-    await dataBaseClient.insertData(chatId, userData)
-
-    await dataBaseClient.end()
+    await ClientDb.insertData(chatId, userData)
 
     logger.info(`Data: ${JSON.stringify(userData)} saved to db`)
   } catch (error) {

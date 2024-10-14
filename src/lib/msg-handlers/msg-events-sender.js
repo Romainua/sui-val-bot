@@ -1,5 +1,5 @@
-import logger from '../bot/handle-logs/logger.js'
-import { handleUnsubscribeFromStakeEvents } from '../bot/actions/subscription-handlers.js'
+import logger from '../../utils/handle-logs/logger.js'
+import { handleUnsubscribeFromStakeEvents } from '../../bot/actions/staking-subscription-handlers.js'
 
 // Utility function to pause execution for a specified number of milliseconds
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))

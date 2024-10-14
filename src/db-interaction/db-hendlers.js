@@ -1,41 +1,10 @@
-import dotenv from 'dotenv'
-import logger from '../bot/handle-logs/logger.js'
-import pkg from 'pg'
+import logger from '../utils/handle-logs/logger.js'
+import _ from 'lodash'
+import client from './db.js'
 
-const { Client } = pkg
-
-dotenv.config()
-
-class ClientDb extends Client {
+class ClientDb {
   constructor() {
-    // Call the parent constructor with database config
-    super({
-      user: process.env.PGUSER,
-      host: process.env.PGHOST,
-      database: process.env.PGDATABASE,
-      password: process.env.PGPASSWORD,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    })
-  }
-
-  async connect() {
-    try {
-      await super.connect()
-      logger.info('Connected to db')
-    } catch (err) {
-      logger.error(`Connection error: ${err.stack}`)
-    }
-  }
-
-  async end() {
-    try {
-      await super.end()
-      logger.info('Closed db connection')
-    } catch (err) {
-      logger.error(`Closed db connection error: ${err.stack}`)
-    }
+    this.client = client
   }
 
   async createTableIfNotExists() {
@@ -43,11 +12,13 @@ class ClientDb extends Client {
       CREATE TABLE IF NOT EXISTS user_data (
         id BIGSERIAL PRIMARY KEY,
         data JSONB,
-        subscribe_data JSONB DEFAULT '[]'
+        is_validator_verified BOOLEAN DEFAULT FALSE,
+        subscribe_data JSONB DEFAULT '[]',
+        announcement_subscriptions JSONB DEFAULT '[]'
       );
     `
     try {
-      await this.query(queryText)
+      await this.client.query(queryText)
       logger.info('Table created or already exists')
     } catch (err) {
       logger.error(`Error creating table: ${err.stack}`)
@@ -61,12 +32,13 @@ class ClientDb extends Client {
       ON CONFLICT (id) DO UPDATE SET data = $2;
     `
     try {
-      await this.query(queryText, [id, value])
+      await this.client.query(queryText, [id, value])
       logger.info('Data inserted or updated')
     } catch (err) {
       logger.error(`Failed to insert/update data: ${err.stack}`)
     }
   }
+
   async dropData(chatId) {
     const queryText = `
       DELETE FROM user_data
@@ -74,7 +46,7 @@ class ClientDb extends Client {
     `
 
     try {
-      const result = await this.query(queryText, [chatId])
+      const result = await this.client.query(queryText, [chatId])
 
       // Check if any row was deleted
       if (result.rowCount > 0) {
@@ -89,7 +61,7 @@ class ClientDb extends Client {
 
   async insertSubscribeData(userId, value) {
     try {
-      const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
+      const res = await this.client.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
       const currentSubscriptions = res.rows[0]?.subscribe_data || []
 
       const existingSubscription = currentSubscriptions.find(
@@ -104,7 +76,7 @@ class ClientDb extends Client {
           SET subscribe_data = $2
           WHERE id = $1;
         `
-        await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+        await this.client.query(query, [userId, JSON.stringify(updatedSubscriptions)])
         logger.info('Subscription data inserted or updated')
       } else {
         logger.info('Subscription already exists')
@@ -116,7 +88,7 @@ class ClientDb extends Client {
 
   async deleteSubscribeData(userId, valueToDelete) {
     try {
-      const res = await this.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
+      const res = await this.client.query('SELECT subscribe_data FROM user_data WHERE id = $1', [userId])
       const currentSubscriptions = res.rows[0]?.subscribe_data || []
 
       if (currentSubscriptions.length === 0) {
@@ -140,7 +112,7 @@ class ClientDb extends Client {
         SET subscribe_data = $2
         WHERE id = $1;
       `
-      await this.query(query, [userId, JSON.stringify(updatedSubscriptions)])
+      await this.client.query(query, [userId, JSON.stringify(updatedSubscriptions)])
       logger.info(`Subscription data updated for user with ID: ${userId}`)
     } catch (err) {
       logger.error(`Failed to delete subscription data for user with ID: ${userId}`, err)
@@ -150,7 +122,7 @@ class ClientDb extends Client {
 
   async getUserData(chatId) {
     try {
-      const result = await this.query('SELECT * FROM user_data WHERE id = $1', [chatId])
+      const result = await this.client.query('SELECT * FROM user_data WHERE id = $1', [chatId])
       return result.rows
     } catch (err) {
       logger.error(`Error executing query: ${err.stack}`)
@@ -160,13 +132,107 @@ class ClientDb extends Client {
 
   async getAllData() {
     try {
-      const result = await this.query('SELECT * FROM user_data')
+      const result = await this.client.query('SELECT * FROM user_data')
       return result.rows
     } catch (err) {
       logger.error(`Error executing query: ${err.stack}`)
       return null
     }
   }
+
+  async updateIsVerifiedColumn(id, value) {
+    const queryText = `
+      UPDATE user_data
+      SET is_validator_verified = $2
+      WHERE id = $1;
+    `
+    try {
+      await this.client.query(queryText, [id, value])
+      logger.info(`Successfully updated is_validator_verified to ${value} for user with ID: ${id}`)
+    } catch (err) {
+      logger.error(`Failed to update is_validator_verified: ${err.stack}`)
+    }
+  }
+
+  async getIsVerifiedValidator(chatId) {
+    try {
+      const result = await this.client.query('SELECT is_validator_verified FROM user_data WHERE id = $1', [chatId])
+      return result.rows
+    } catch (err) {
+      logger.error(`Error executing query to get is_validator_verified: ${err.stack}`)
+      return null
+    }
+  }
+
+  async insertAnnouncementSubscribeData(chatId, value) {
+    try {
+      const res = await this.client.query('SELECT announcement_subscriptions FROM user_data WHERE id = $1', [chatId])
+      const currentSubscriptions = res.rows[0]?.announcement_subscriptions || []
+
+      const combinedSubscriptions = [...currentSubscriptions, value]
+
+      const uniqueSubscriptions = _.uniqBy(combinedSubscriptions, (item) => item.channelId)
+
+      const query = `
+        UPDATE user_data 
+        SET announcement_subscriptions = $2
+        WHERE id = $1;
+      `
+      await this.client.query(query, [chatId, JSON.stringify(uniqueSubscriptions)])
+
+      logger.info(`Successfully inserted or updated announcement subscription for chat ID: ${chatId}`)
+    } catch (err) {
+      logger.error(`Failed to insert announcement subscription data for user with ID: ${chatId}`, err)
+      throw err
+    }
+  }
+
+  async getActiveAnnouncementSubscriptions(chatId) {
+    try {
+      const result = await this.client.query('SELECT announcement_subscriptions FROM user_data WHERE id = $1', [chatId])
+      return result.rows[0]?.announcement_subscriptions
+    } catch (err) {
+      logger.error(`Error executing query to get announcement_subscriptions: ${err.stack}`)
+      return null
+    }
+  }
+
+  async getIsVerifiedValidators() {
+    try {
+      const result = await this.client.query('SELECT * FROM user_data WHERE is_validator_verified = true;')
+      return result.rows
+    } catch (err) {
+      logger.error(`Error executing query to get verified validators: ${err.stack}`)
+      return null
+    }
+  }
+
+  async updateStatusOfChannel(chatId, channelId, status) {
+    try {
+      const res = await this.client.query('SELECT announcement_subscriptions FROM user_data WHERE id = $1', [chatId])
+
+      let currentSubscriptions = res.rows[0]?.announcement_subscriptions || []
+
+      currentSubscriptions = currentSubscriptions.map((subscription) => {
+        if (subscription.channelId === channelId) {
+          return { ...subscription, status: status }
+        }
+        return subscription
+      })
+
+      const query = `
+          UPDATE user_data 
+          SET announcement_subscriptions = $2
+          WHERE id = $1;
+        `
+      await this.client.query(query, [chatId, JSON.stringify(currentSubscriptions)])
+
+      logger.info(`Successfully updated announcement subscription status for chat ID: ${chatId}`)
+    } catch (err) {
+      logger.error(`Failed to update announcement subscription status for user with ID: ${chatId}`, err)
+      throw err
+    }
+  }
 }
 
-export default ClientDb
+export default new ClientDb()

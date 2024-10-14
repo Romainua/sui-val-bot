@@ -1,5 +1,5 @@
-import logger from '../handle-logs/logger.js'
-import messageSender from '../../../src/utils/message-sender.js'
+import logger from '../../utils/handle-logs/logger.js'
+import messageSender from '../../lib/msg-handlers/msg-events-sender.js'
 
 export default async function messageHandler(bot, chatId, subscription, data) {
   const valName = subscription.name

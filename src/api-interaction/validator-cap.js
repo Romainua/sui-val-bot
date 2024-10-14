@@ -1,12 +1,9 @@
 import { SuiClient } from '@mysten/sui.js/client'
-import dotenv from 'dotenv'
 
-dotenv.config()
+const API_URL = process.env.API_URL
 
 async function getStakingPoolIdObjectsByName(address) {
-  const apiUrl = process.env.apiUrl
-
-  const connection = new SuiClient({ url: apiUrl })
+  const connection = new SuiClient({ url: API_URL })
 
   var totalStakedSui = []
   var isNextPage = true
