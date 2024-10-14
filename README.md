@@ -1,35 +1,36 @@
-# Sui Validator Bot
+# Sui Validator Bot with db
 
 **If there is no working machine nearby it is enough to have a phone to set the necessary parameters for your
 validator**
 
 The bot is manager of your validator. Bot uses:
 
-cap operations (change branch to val-ctrl):
+cap operations (change branch to val-ctrl or db/val-contrl):
 
--  `request_set_gas_price`
--  `request_set_commission_rate`
--  `request_withdraw_stake`
+- `request_set_gas_price`
+- `request_set_commission_rate`
+- `request_withdraw_stake`
 
 not cap operations:
 
--  `get validator System State info`
+- `get validator System State info`
 
 ## Bot capabilities:
 
--  fetch gas price for next epoch by 2/3 (6666) of validators
--  show added validator info (System State)
--  show another validator info by name
--  withdraw rewards (from one pool or all)
--  show validator rewards by name
--  subsctibe to stake/unstake events
+- fetch gas price for next epoch by 2/3 (6666) of validators
+- show added validator info (System State)
+- show another validator by name
+- withdraw rewards (from one pool or all)
+- show validator rewards by name
+- save user data and chat id to db
+- subscribe to stake/unstake events
 
-_cap operations, if you want to use these change branch to val-ctrl_
+**If want use these functionality change branch to val-ctrl or db/val-contrl**
 
--  set gas for next epoch
--  set commission rate for next epoch
--  add validator in bot
--  delete validator from bot
+- set gas for next epoch
+- set commission rate for next epoch
+- add validator in bot
+- delete validator from bot
 
 You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_validator_bot)
 
@@ -38,15 +39,19 @@ You can play with bot on mainnet [t.me/sui_validator_bot](https://t.me/sui_valid
 ## Deploying
 
 1. Cloning this repo
-
-_If you want use bot with db change the branch to `db-impl` and follow the README there_
-
-2. Creating .env file into sui-val-bot dir with following info:
+2. Run your PostgresSQL server (you can use Amazon RDS)
+3. Creating .env file into sui-val-bot dir with following info:
 
 ```
 TELEGRAM_BOT_TOKEN=<SOME_TOKEN>
 apiUrl=https://fullnode.testnet.sui.io
 WEBSOCKET_apiUrl=wss://fullnode.mainnet.sui.io
+
+#data for connect db
+PGHOST=
+PGUSER=
+PGPASSWORD=
+PGDATABASE=
 ```
 
 recommended to use the endpoint `https://fullnode.testnet.sui.io` and `wss://fullnode.mainnet.sui.io`
@@ -57,7 +62,7 @@ recommended to use the endpoint `https://fullnode.testnet.sui.io` and `wss://ful
 sudo docker build -t sui-validator-bot .
 ```
 
-4. Then run new container with iamge
+4. Then run new container with image
 
 ```
 sudo docker run -d --name sui-validator-bot --restart=always sui-validator-bot

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  telegram-bot:
+    build: .
+    container_name: telegram_bot_container
+    restart: unless-stopped
+    depends_on:
+      - discord-auth-server
+    volumes:
+      - .:/usr/src/bot
+      - /usr/src/bot/node_modules
+    environment:
+      - NODE_ENV=production
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    networks:
+      - default
+
+  discord-auth-server:
+    build: .
+    container_name: discord_auth_server
+    command: node scripts/discord-auth-server.js
+    restart: unless-stopped
+    depends_on:
+      - postgres-db
+    ports:
+      - '3000:3000'
+    environment:
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI}
+      - GUILD_ID=${GUILD_ID}
+      - REQUIRED_ROLE_ID=${REQUIRED_ROLE_ID}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+    networks:
+      - default
+
+networks:
+  default:

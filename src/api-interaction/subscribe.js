@@ -1,55 +1,31 @@
 import WebSocket from 'ws'
-import dotenv from 'dotenv'
+import { stakingEventsRequest, epochChangeEventRequest } from './requests.js'
+import logger from '../utils/handle-logs/logger.js'
 
-dotenv.config()
+const WS_URL = process.env.WEBSOCKET_URL
 
 async function initWsConnection() {
-   const ws = new WebSocket(process.env.WEBSOCKET_apiUrl)
-   return ws
+  const ws = new WebSocket(WS_URL)
+  return ws
 }
+
 //connection for stake events
 async function createWebSocketConnection(validatorAddress, type) {
-   const ws = await initWsConnection()
+  const ws = await initWsConnection()
 
-   const requestData = {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'suix_subscribeEvent',
-      params: [
-         {
-            And: [
-               {
-                  MoveEventField: {
-                     path: '/validator_address',
-                     value: validatorAddress,
-                  },
-               },
-               {
-                  MoveEventType: `0x3::validator::${
-                     type === 'delegate' ? 'StakingRequestEvent' : 'UnstakingRequestEvent'
-                  }`,
-               },
-            ],
-         },
-      ],
-   }
+  ws.on('open', function open() {
+    logger.info(`WebSocket connection established`)
+    if (type === 'epoch_reward') {
+      ws.send(JSON.stringify(epochChangeEventRequest(validatorAddress))) //send requst
+    } else {
+      ws.send(JSON.stringify(stakingEventsRequest(type, validatorAddress))) //send requst
+    }
 
-   ws.on('open', function open() {
-      console.log('WebSocket connection established')
-
-      ws.send(JSON.stringify(requestData)) //send requst
-
-      setInterval(() => {
-         ws.ping()
-      }, 5000)
-   })
-
-   //when we get error
-   ws.on('error', function error(err) {
-      console.error('WebSocket encountered error: ', err)
-   })
-
-   return ws
+    setInterval(() => {
+      ws.ping()
+    }, 5000)
+  })
+  return ws
 }
 
 export default createWebSocketConnection

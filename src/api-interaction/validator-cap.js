@@ -1,18 +1,28 @@
-import { JsonRpcProvider, Connection } from '@mysten/sui.js'
-import dotenv from 'dotenv'
+import { SuiClient } from '@mysten/sui.js/client'
 
-dotenv.config()
+const API_URL = process.env.API_URL
 
 async function getStakingPoolIdObjectsByName(address) {
-   const apiUrl = process.env.apiUrl
-   const connection = new Connection({ fullnode: apiUrl })
-   const provider = new JsonRpcProvider(connection)
+  const connection = new SuiClient({ url: API_URL })
 
-   const stakedSuiObjects = await provider.getOwnedObjects({
+  var totalStakedSui = []
+  var isNextPage = true
+  var cursor = null
+
+  do {
+    const stakedSuiObjects = await connection.getOwnedObjects({
       owner: address,
+      cursor: cursor,
       options: { showType: true, showContent: true },
-   })
-   return stakedSuiObjects
+    })
+
+    totalStakedSui.push(...stakedSuiObjects.data)
+
+    isNextPage = stakedSuiObjects.hasNextPage
+    cursor = stakedSuiObjects.nextCursor
+  } while (isNextPage)
+
+  return totalStakedSui
 }
 
 export default getStakingPoolIdObjectsByName
