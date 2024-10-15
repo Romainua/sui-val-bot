@@ -231,13 +231,15 @@ function attachHandlers(bot) {
 
   bot.onText(new RegExp('/start'), (msg) => {
     const chatId = msg.chat.id
-    discordForwarder(bot, chatId)
+
+    handleStartCommand(chatId, msg)
+
     bot.sendMessage(
       chatId,
       'Hello and welcome! 🎉 I’m here to help you stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
       { reply_markup: callbackButtonForStartCommand() },
     )
-    handleStartCommand(chatId, msg)
+
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
   })
 
