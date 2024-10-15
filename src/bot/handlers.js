@@ -18,7 +18,6 @@ import {
   callbackButtonWebsite,
 } from './keyboards/keyboard.js'
 import initEventsSubscribe from '../utils/initEventsSubscribe.js'
-import discordForwarder from '../lib/discord/discord-forwarder.js'
 import { updateAnnouncementSubscription, handleDiscordAnnouncementCommand } from './actions/discord-annc-handler.js'
 
 const waitingForValidatorName = new Map() //map for validator name
@@ -249,7 +248,7 @@ function attachHandlers(bot) {
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
   })
 
-  bot.onText(new RegExp('/valinfo'), (msg) => {
+  bot.onText(new RegExp('/validator_info'), (msg) => {
     const chatId = msg.chat.id
 
     bot
@@ -260,7 +259,7 @@ function attachHandlers(bot) {
         waitingForValidatorName.set(chatId, true)
       })
 
-    logger.info(`User ${msg.from.username} (${msg.from.id}) called /valinfo command`)
+    logger.info(`User ${msg.from.username} (${msg.from.id}) called /validator_info command`)
   })
 
   bot.onText(new RegExp('/stakenotify'), (msg) => {
@@ -290,6 +289,26 @@ function attachHandlers(bot) {
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /gasprice command`)
   })
+
+  bot.onText(new RegExp('/events_history'), async (msg) => {
+    const chatId = msg.chat.id
+
+    bot.sendMessage(chatId, 'Browse all events with custom filters 🔍', {
+      chat_id: chatId,
+      reply_markup: callbackButtonWebsite(),
+    })
+
+    logger.info(`User ${msg.from.username} (${msg.from.id}) called /events_history command`)
+  })
+
+  bot.onText(new RegExp('/announcment'), async (msg) => {
+    const chatId = msg.chat.id
+
+    handleDiscordAnnouncementCommand(bot, chatId)
+
+    logger.info(`User ${msg.from.username} (${msg.from.id}) called /announcment command`)
+  })
+
   //callback query
   bot.on('callback_query', async (callbackQuery) => {
     const chatId = callbackQuery.message.chat.id

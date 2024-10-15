@@ -101,17 +101,15 @@ function callbackButtonForDiscordNotVerify(chatId) {
 }
 
 function callbackButtonForDiscordVerified(listOfSubscriptions) {
-  const keyboard = listOfSubscriptions.map((obj) => ({
-    text: obj.name + ` (${obj.status === true ? 'ON ✅' : 'OFF ❌'})`,
-    callback_data: `update_discord_announcements:${obj.channelId}`,
-  }))
+  const keyboard = listOfSubscriptions.map((obj) => {
+    return {
+      text: obj.name + ` (${obj.status === true ? 'ON ✅' : 'OFF ❌'})`,
+      callback_data: `update_discord_announcements:${obj.channelId}`,
+    }
+  })
 
   return {
-    inline_keyboard: [
-      keyboard,
-      // [{ text: '🔧 Manage Subscriptions', callback_data: 'manage_discrod_announcements' }],
-      [{ text: '⬅ Back to Main Menu', callback_data: 'main_menu' }],
-    ],
+    inline_keyboard: [...keyboard.map((btn) => [btn]), [{ text: '⬅ Back to Main Menu', callback_data: 'main_menu' }]],
   }
 }
 

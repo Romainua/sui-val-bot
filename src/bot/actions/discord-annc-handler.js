@@ -19,12 +19,17 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
       To subscribe, you need to authenticate so we can verify your roles and ensure you have the necessary permissions. During authentication, we will request the following permission:\n
       - **\`guilds.members.read\`**: This permission allows us to check your membership and roles in the server to determine if you have access to the announcements.\n
     `
-      bot.editMessageText(message, {
-        parse_mode: 'Markdown',
-        chat_id: chatId,
-        message_id: msgId,
-        reply_markup: callbackButtonForDiscordNotVerify(chatId),
-      })
+      msgId
+        ? bot.editMessageText(message, {
+            parse_mode: 'Markdown',
+            chat_id: chatId,
+            message_id: msgId,
+            reply_markup: callbackButtonForDiscordNotVerify(chatId),
+          })
+        : bot.sendMessage(chatId, message, {
+            parse_mode: 'Markdown',
+            reply_markup: callbackButtonForDiscordNotVerify(chatId),
+          })
     } else {
       let listOfSubscriptions = await ClientDb.getActiveAnnouncementSubscriptions(chatId)
 
@@ -42,11 +47,15 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
 
       const message = `You are a verified member! 🎉\nYour role has been verified, you now have access to exclusive announcements and updates, select channel.`
 
-      bot.editMessageText(message, {
-        chat_id: chatId,
-        message_id: msgId,
-        reply_markup: callbackButtonForDiscordVerified(listOfSubscriptions),
-      })
+      msgId
+        ? bot.editMessageText(message, {
+            chat_id: chatId,
+            message_id: msgId,
+            reply_markup: callbackButtonForDiscordVerified(listOfSubscriptions),
+          })
+        : bot.sendMessage(chatId, message, {
+            reply_markup: callbackButtonForDiscordVerified(listOfSubscriptions),
+          })
     }
   } catch (error) {
     logger.error(`Error handling Discord announcement command: ${error.message}`)
