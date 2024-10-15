@@ -41,9 +41,13 @@ export default function discordForwarder(bot) {
 
   // Listen for interactions (messages)
   client.on('messageCreate', async (message) => {
-    if (message.author.bot) return
-    await message.react('✅')
-    await message.react('🔁')
+    if (!DISCORD_CHANNEL_IDS.includes(message.channel.id)) {
+      return
+    }
+
+    // await message.react('✅')
+    // await message.react('🔁')
+
     const getVerifiedValidators = await ClientDb.getIsVerifiedValidators(message.author.id)
 
     const channelName = message.channel.name
@@ -53,6 +57,7 @@ export default function discordForwarder(bot) {
       const chatId = userData.id
       const announcementSubscriptions = userData.announcement_subscriptions
 
+      // Check if the user is subscribed to this channel
       announcementSubscriptions.forEach((subscription) => {
         if (subscription.channelId === message.channel.id && subscription.status) {
           handleMsgDiscord(bot, chatId, message.content, channelName, messageLink)

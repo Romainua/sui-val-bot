@@ -1,3 +1,6 @@
+import dotenv from 'dotenv'
+dotenv.config()
+
 function subscribeKeyBoard() {
   return {
     inline_keyboard: [
@@ -86,7 +89,9 @@ function callbackButtonWebsite() {
 }
 
 function callbackButtonForDiscordNotVerify(chatId) {
-  const OAuth2_URL = `https://discord.com/oauth2/authorize?client_id=1294363954788827146&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A3001%2Fauth%2Fdiscord%2Fcallback&scope=guilds.members.read&state=${chatId}`
+  const BASE_AUTH_URL = process.env.BASE_AUTH_URL
+  const OAuth2_URL = `${BASE_AUTH_URL}&state=${chatId}`
+
   return {
     inline_keyboard: [
       [{ text: 'Verify Discord Role', url: OAuth2_URL }],

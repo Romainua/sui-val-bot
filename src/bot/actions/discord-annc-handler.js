@@ -31,8 +31,9 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
       const hasNonEmptyValues = DISCORD_CHANNEL_IDS.some((channel) => channel.trim() !== '')
 
       if (DISCORD_CHANNEL_IDS.length !== listOfSubscriptions.length && hasNonEmptyValues) {
+        await ClientDb.dropAllAnnouncementSubscriptions(chatId) //drop all old subscriptions
         for (const channelId of DISCORD_CHANNEL_IDS) {
-          await initAnnouncementSubscription(chatId, channelId)
+          await initAnnouncementSubscription(chatId, channelId) //init new subscriptions
         }
 
         // After all subscriptions are initialized, fetch the updated list

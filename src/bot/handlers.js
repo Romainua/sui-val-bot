@@ -577,7 +577,7 @@ function attachHandlers(bot) {
           await bot.answerCallbackQuery(callbackQuery.id)
         }
         logger.info(
-          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called drop_discord_announcements (Drop Discord Announcements Subscription)`,
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called update_discord_announcements (Update Discord Announcements Subscription)`,
         )
         break
 

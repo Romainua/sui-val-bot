@@ -197,6 +197,17 @@ class ClientDb {
     }
   }
 
+  async dropAllAnnouncementSubscriptions(chatId) {
+    try {
+      await this.client.query('UPDATE user_data SET announcement_subscriptions = $2 WHERE id = $1', [chatId, JSON.stringify([])])
+      logger.info(`All announcement subscriptions dropped for chat ID: ${chatId}`)
+      return true
+    } catch (err) {
+      logger.error(`Error dropping announcement subscriptions for chat ID ${chatId}: ${err.stack}`)
+      return false
+    }
+  }
+
   async getIsVerifiedValidators() {
     try {
       const result = await this.client.query('SELECT * FROM user_data WHERE is_validator_verified = true;')

@@ -24,7 +24,7 @@ async function handleInitRestorSubscriptions(bot) {
             const valName = subscription.name
             const type = subscription.type
             const sizeOfTokens = subscription.tokenSize || 'All'
-            const isEpochReward = type === 'delegate' ? subscription.isEpochReward || true : false
+            const isEpochReward = type === 'delegate' ? subscription.isEpochReward : false
             const amountOfTokens =
               sizeOfTokens === 100
                 ? 100

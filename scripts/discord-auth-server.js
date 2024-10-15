@@ -102,7 +102,7 @@ async function handleUpdateVerification(chatId, isVerifedValidator) {
   try {
     await ClientDb.updateIsVerifiedColumn(chatId, isVerifedValidator)
 
-    logger.info(`Chat id: ${chatId} is verified: ${isVerifedValidator}`)
+    logger.info(`Chat id: ${chatId} validator is verified: ${isVerifedValidator}`)
   } catch (error) {
     logger.error(`Error to update verification: ${error.message}`)
   }
