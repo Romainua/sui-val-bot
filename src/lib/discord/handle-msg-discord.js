@@ -5,7 +5,7 @@ export default async function sendTelegramMessageForDiscord(bot, chatId, message
   const formattedMessageContent = await replaceRoleMentionsAndAdText(messageContent)
 
   const text = `
-📢 **New Message in ${channelName}!** 📢
+  **New Announcement in ${channelName}!**
 
 ${formattedMessageContent}
   `
@@ -23,7 +23,11 @@ ${formattedMessageContent}
 }
 
 function removeCustomEmojis(text) {
-  return text.replace(/:[a-zA-Z0-9_]+:/g, '') // This removes any :emoji: format
+  text = text.replace(/:[a-zA-Z0-9_]+:/g, '') // remove custom emojis in the format :emoji:
+
+  text = text.replace(/<[^>]+>/g, '') // remove mentions or other content inside <@123456789> or <#1234> etc.
+
+  return text
 }
 
 async function replaceRoleMentionsAndAdText(messageContent) {

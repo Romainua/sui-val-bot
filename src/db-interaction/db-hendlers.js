@@ -13,8 +13,10 @@ class ClientDb {
         id BIGSERIAL PRIMARY KEY,
         data JSONB,
         is_validator_verified BOOLEAN DEFAULT FALSE,
+        tg_channels JSONB DEFAULT '[]',
         subscribe_data JSONB DEFAULT '[]',
-        announcement_subscriptions JSONB DEFAULT '[]'
+        announcement_subscriptions JSONB DEFAULT '[]',
+        general_ann_subscriptions JSONB DEFAULT '[]'
       );
     `
     try {
@@ -241,6 +243,77 @@ class ClientDb {
       logger.info(`Successfully updated announcement subscription status for chat ID: ${chatId}`)
     } catch (err) {
       logger.error(`Failed to update announcement subscription status for user with ID: ${chatId}`, err)
+      throw err
+    }
+  }
+
+  async getGeneralAnnouncementSubscriptions(chatId) {
+    try {
+      const result = await this.client.query('SELECT general_ann_subscriptions FROM user_data WHERE id = $1', [chatId])
+      return result.rows[0]?.general_ann_subscriptions
+    } catch (err) {
+      logger.error(`Error executing query to get general_ann_subscriptions: ${err.stack}`)
+      return null
+    }
+  }
+
+  async dropGeneralAnnouncementSubscriptions(chatId) {
+    try {
+      await this.client.query('UPDATE user_data SET general_ann_subscriptions = $2 WHERE id = $1', [chatId, JSON.stringify([])])
+      logger.info(`All General announcement subscriptions dropped for chat ID: ${chatId}`)
+      return true
+    } catch (err) {
+      logger.error(`Error dropping General announcement subscriptions for chat ID ${chatId}: ${err.stack}`)
+      return false
+    }
+  }
+
+  async insertGeneralAnnouncementSubscribtions(chatId, value) {
+    try {
+      const res = await this.client.query('SELECT general_ann_subscriptions FROM user_data WHERE id = $1', [chatId])
+      const currentSubscriptions = res.rows[0]?.general_ann_subscriptions || []
+
+      const combinedSubscriptions = [...currentSubscriptions, value]
+
+      const uniqueSubscriptions = _.uniqBy(combinedSubscriptions, (item) => item.channelId)
+
+      const query = `
+        UPDATE user_data 
+        SET general_ann_subscriptions = $2
+        WHERE id = $1;
+      `
+      await this.client.query(query, [chatId, JSON.stringify(uniqueSubscriptions)])
+
+      logger.info(`Successfully inserted or updated General announcement subscription for chat ID: ${chatId}`)
+    } catch (err) {
+      logger.error(`Failed to insert General announcement subscription data for user with ID: ${chatId}`, err)
+      throw err
+    }
+  }
+
+  async updateStatusOfGeneralChannel(chatId, channelId, status) {
+    try {
+      const res = await this.client.query('SELECT general_ann_subscriptions FROM user_data WHERE id = $1', [chatId])
+
+      let currentSubscriptions = res.rows[0]?.general_ann_subscriptions || []
+
+      currentSubscriptions = currentSubscriptions.map((subscription) => {
+        if (subscription.channelId === channelId) {
+          return { ...subscription, status: status }
+        }
+        return subscription
+      })
+
+      const query = `
+          UPDATE user_data 
+          SET general_ann_subscriptions = $2
+          WHERE id = $1;
+        `
+      await this.client.query(query, [chatId, JSON.stringify(currentSubscriptions)])
+
+      logger.info(`Successfully updated General announcement subscription status for chat ID: ${chatId}`)
+    } catch (err) {
+      logger.error(`Failed to update General announcement subscription status for user with ID: ${chatId}`, err)
       throw err
     }
   }

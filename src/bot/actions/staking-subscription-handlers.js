@@ -1,7 +1,7 @@
 import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
 import createWebSocketConnection from '../../api-interaction/subscribe.js'
-import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/keyboard.js'
+import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/validators-menu-keyboard.js'
 import WebSocket from 'ws'
 import messageHandler from '../../lib/msg-handlers/staking-msg-handler.js'
 import getAmountOfTokens from '../../utils/getTokenAmountString.js'

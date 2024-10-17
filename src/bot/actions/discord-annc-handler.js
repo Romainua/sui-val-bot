@@ -1,12 +1,12 @@
 import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
 import getChannelName from '../../lib/discord/getChannelName.js'
-import { callbackButtonForDiscordNotVerify, callbackButtonForDiscordVerified } from '../keyboards/keyboard.js'
+import { callbackButtonForDiscordNotVerify, callbackButtonForDiscordVerified } from '../keyboards/validators-menu-keyboard.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
-const DISCORD_CHANNEL_IDS = process.env.DISCORD_CHANNEL_IDS.split(',')
+const DISCORD_VALIDATORS_CHANNEL_IDS = process.env.DISCORD_VALIDATORS_CHANNEL_IDS.split(',')
 
 async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
   try {
@@ -33,11 +33,11 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
     } else {
       let listOfSubscriptions = await ClientDb.getActiveAnnouncementSubscriptions(chatId)
 
-      const hasNonEmptyValues = DISCORD_CHANNEL_IDS.some((channel) => channel.trim() !== '')
+      const hasNonEmptyValues = DISCORD_VALIDATORS_CHANNEL_IDS.some((channel) => channel.trim() !== '')
 
-      if (DISCORD_CHANNEL_IDS.length !== listOfSubscriptions.length && hasNonEmptyValues) {
+      if (DISCORD_VALIDATORS_CHANNEL_IDS.length !== listOfSubscriptions.length && hasNonEmptyValues) {
         await ClientDb.dropAllAnnouncementSubscriptions(chatId) //drop all old subscriptions
-        for (const channelId of DISCORD_CHANNEL_IDS) {
+        for (const channelId of DISCORD_VALIDATORS_CHANNEL_IDS) {
           await initAnnouncementSubscription(chatId, channelId) //init new subscriptions
         }
 

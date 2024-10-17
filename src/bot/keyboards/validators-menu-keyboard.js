@@ -1,6 +1,17 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
+function callbackButtonForStartCommand() {
+  return {
+    inline_keyboard: [
+      [
+        { text: 'Handle Discord Announcements 📢', callback_data: 'general_discord_announcements' },
+        { text: `I'm Validator 🤖`, callback_data: 'validators_menu' },
+      ],
+    ],
+  }
+}
+
 function subscribeKeyBoard() {
   return {
     inline_keyboard: [
@@ -10,7 +21,7 @@ function subscribeKeyBoard() {
       ],
       [{ text: 'Epoch Reward 🏅', callback_data: 'epoch_reward' }],
       [{ text: 'Check Active Subscriptions 📋', callback_data: 'check_active_subscriptions' }],
-      [{ text: '⬅ Back', callback_data: 'main_menu' }],
+      [{ text: '⬅ Back', callback_data: 'validators_menu' }],
     ],
   }
 }
@@ -20,9 +31,9 @@ function backReply() {
   return [[{ text: '⬅ Back', callback_data: 'back_button' }]]
 }
 
-function backReplyForMainMenu() {
+function backReplyForValidatorMenu() {
   return {
-    inline_keyboard: [[{ text: '⬅ Back', callback_data: 'main_menu' }]],
+    inline_keyboard: [[{ text: '⬅ Back', callback_data: 'validators_menu' }]],
   }
 }
 
@@ -42,7 +53,7 @@ function unsubscribeCallBackButton(subscriptionsArray) {
   return callBackObjectButton
 }
 
-function callbackButtonForStartCommand() {
+function callbackButtonForValidatorCommand() {
   return {
     inline_keyboard: [
       [
@@ -55,6 +66,7 @@ function callbackButtonForStartCommand() {
       ],
       [{ text: 'Subscribe To Discord Announcements 📢', callback_data: 'discord_announcements' }],
       [{ text: 'View All Events History 📊', callback_data: 'view_all_events_history' }],
+      [{ text: '⬅ Back', callback_data: 'main_menu' }],
     ],
   }
 }
@@ -83,7 +95,7 @@ function callbackButtonWebsite() {
         { text: 'Open Mini App', web_app: { url: url } },
         { text: 'Open Website', url: url },
       ],
-      [{ text: '⬅ Back', callback_data: 'main_menu' }],
+      [{ text: '⬅ Back', callback_data: 'validators_menu' }],
     ],
   }
 }
@@ -93,10 +105,7 @@ function callbackButtonForDiscordNotVerify(chatId) {
   const OAuth2_URL = `${BASE_AUTH_URL}&state=${chatId}`
 
   return {
-    inline_keyboard: [
-      [{ text: 'Verify Discord Role', url: OAuth2_URL }],
-      [{ text: '⬅ Back to Main Menu', callback_data: 'main_menu' }],
-    ],
+    inline_keyboard: [[{ text: 'Verify Discord Role', url: OAuth2_URL }], [{ text: '⬅ Back', callback_data: 'validators_menu' }]],
   }
 }
 
@@ -109,7 +118,7 @@ function callbackButtonForDiscordVerified(listOfSubscriptions) {
   })
 
   return {
-    inline_keyboard: [...keyboard.map((btn) => [btn]), [{ text: '⬅ Back to Main Menu', callback_data: 'main_menu' }]],
+    inline_keyboard: [...keyboard.map((btn) => [btn]), [{ text: '⬅ Back', callback_data: 'validators_menu' }]],
   }
 }
 
@@ -118,10 +127,11 @@ export {
   backReply,
   unsubscribeCallBackButton,
   callbackButtonForStartCommand,
-  backReplyForMainMenu,
+  backReplyForValidatorMenu,
   callbackButtonSizeOfTokens,
   callbackButtonForIncludeEpochReward,
   callbackButtonWebsite,
   callbackButtonForDiscordVerified,
   callbackButtonForDiscordNotVerify,
+  callbackButtonForValidatorCommand,
 }

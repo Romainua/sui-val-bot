@@ -12,13 +12,16 @@ import {
   subscribeKeyBoard,
   backReply,
   callbackButtonForStartCommand,
-  backReplyForMainMenu,
+  backReplyForValidatorMenu,
   callbackButtonSizeOfTokens,
   callbackButtonForIncludeEpochReward,
   callbackButtonWebsite,
-} from './keyboards/keyboard.js'
+  callbackButtonForValidatorCommand,
+} from './keyboards/validators-menu-keyboard.js'
+import { callbackFroDiscordAnnouncementsCommand } from './keyboards/discord-ann-keyboard.js'
 import initEventsSubscribe from '../utils/initEventsSubscribe.js'
 import { updateAnnouncementSubscription, handleDiscordAnnouncementCommand } from './actions/discord-annc-handler.js'
+import { handleDiscordGeneralCommand, updateGeneralAnnouncementSubscription } from './actions/general-discord-handler.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
@@ -31,11 +34,19 @@ function attachHandlers(bot) {
   //send msgs to users when bot have been updated
   handleInitRestorSubscriptions(bot)
 
-  const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/menu', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
+  const LIST_OF_COMMANDS = [
+    '/start',
+    '/stakenotify',
+    '/menu',
+    '/gasprice',
+    '/rewards',
+    '/validator_info',
+    '/announcements',
+    '/events_history',
+  ] //commands on telegram
 
-  //handling custom messages, input name, key, gas, commission...
   bot.on('message', async (msg) => {
-    const chatId = msg.chat.id
+    const chatId = msg.chat.id // Get chat ID (this will be your channel ID)
 
     //show custom validator by name waiting
     if (waitingForValidatorName.get(chatId)) {
@@ -46,13 +57,13 @@ function attachHandlers(bot) {
         : handleValidatorInfo(bot, chatId, validatorName)
             .then(() => {
               validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callback button
-              bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForStartCommand() })
+              bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForValidatorCommand() })
 
               logger.info(`User ${msg.from.username} (${msg.from.id}) called show validator data by ${validatorName}`)
             })
             .catch(() => {
               bot.sendMessage(chatId, `❗ Can't find validator`, {
-                reply_markup: backReplyForMainMenu(),
+                reply_markup: backReplyForValidatorMenu(),
               })
               logger.info(`User ${msg.from.username} (${msg.from.id}). Can't find validator ${validatorName}`)
             })
@@ -83,7 +94,7 @@ function attachHandlers(bot) {
 
             .catch((err) => {
               //console.log(err)
-              bot.sendMessage(chatId, "❗ Can't find validator", { reply_markup: backReplyForMainMenu() })
+              bot.sendMessage(chatId, "❗ Can't find validator", { reply_markup: backReplyForValidatorMenu() })
               logger.warn(`User ${msg.from.username} (${msg.from.id}) can't find validator ${valName}`)
             })
       return
@@ -235,8 +246,20 @@ function attachHandlers(bot) {
 
     bot.sendMessage(
       chatId,
-      'Hello and welcome! 🎉 I’m here to help you stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
+      'Hello and welcome! 🎉 I’m here to help you stay informed and manage all your Sui-related activities efficiently.',
       { reply_markup: callbackButtonForStartCommand() },
+    )
+
+    logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
+  })
+
+  bot.onText(new RegExp('/validator_menu'), (msg) => {
+    const chatId = msg.chat.id
+
+    bot.sendMessage(
+      chatId,
+      'Stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
+      { reply_markup: callbackButtonForValidatorCommand() },
     )
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
@@ -244,7 +267,11 @@ function attachHandlers(bot) {
 
   bot.onText(new RegExp('/menu'), (msg) => {
     const chatId = msg.chat.id
-    bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForStartCommand() })
+    bot.sendMessage(
+      chatId,
+      'I’m here to help you stay informed and manage all your Sui-related activities efficiently.\nChoose a button. ',
+      { reply_markup: callbackButtonForStartCommand() },
+    )
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
   })
 
@@ -253,7 +280,7 @@ function attachHandlers(bot) {
 
     bot
       .sendMessage(chatId, 'Input validator name:', {
-        reply_markup: backReplyForMainMenu(),
+        reply_markup: backReplyForValidatorMenu(),
       })
       .then(() => {
         waitingForValidatorName.set(chatId, true)
@@ -275,7 +302,7 @@ function attachHandlers(bot) {
   bot.onText(new RegExp('/rewards'), (msg) => {
     const chatId = msg.chat.id
 
-    bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForMainMenu() }).then(() => {
+    bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForValidatorMenu() }).then(() => {
       waitingValidatorNameForRewards.set(chatId, true)
     })
 
@@ -334,6 +361,42 @@ function attachHandlers(bot) {
     }
 
     switch (action) {
+      case 'general_discord_announcements':
+        bot
+          .editMessageText(
+            '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\nThis subscription is only available to channel owners.',
+            {
+              chat_id: chatId,
+              message_id: msgId,
+              reply_markup: callbackFroDiscordAnnouncementsCommand(),
+            },
+          )
+          .then(() => bot.answerCallbackQuery(callbackQuery.id))
+
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called general_discord_announcements (General Discord Announcements)`,
+        )
+        break
+
+      case 'validators_menu':
+        bot
+          .editMessageText(
+            'Stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
+            { chat_id: chatId, message_id: msgId, reply_markup: callbackButtonForValidatorCommand() },
+          )
+          .then(() => bot.answerCallbackQuery(callbackQuery.id))
+
+        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called validators_menu (Validators Menu)`)
+        break
+
+      case 'general_discord_menage':
+        handleDiscordGeneralCommand(bot, chatId, msgId).then(() => bot.answerCallbackQuery(callbackQuery.id))
+
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called general_discord_menage (General Discord Menage)`,
+        )
+        break
+
       case 'set_stake_notify':
         bot
           .editMessageText('Subscribe to staking events. Choose event.', {
@@ -355,7 +418,7 @@ function attachHandlers(bot) {
           .editMessageText('Input validator name:', {
             chat_id: chatId,
             message_id: msgId,
-            reply_markup: backReplyForMainMenu(),
+            reply_markup: backReplyForValidatorMenu(),
           })
           .then(() => {
             bot.answerCallbackQuery(callbackQuery.id)
@@ -373,7 +436,7 @@ function attachHandlers(bot) {
           .editMessageText('Input validator name:', {
             chat_id: chatId,
             message_id: msgId,
-            reply_markup: backReplyForMainMenu(),
+            reply_markup: backReplyForValidatorMenu(),
           })
           .then(() => {
             waitingValidatorNameForRewards.set(chatId, true)
@@ -507,6 +570,26 @@ function attachHandlers(bot) {
 
         break
 
+      case 'main_menu':
+        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (back to Main Menu)`)
+        bot
+          .editMessageText(
+            'I’m here to help you stay informed and manage all your Sui-related activities efficiently.\nChoose a button. ',
+            {
+              chat_id: chatId,
+              message_id: msg.message_id,
+              reply_markup: callbackButtonForStartCommand(),
+            },
+          )
+          .then(() => {
+            bot.answerCallbackQuery(callbackQuery.id)
+          })
+          .catch((error) => {
+            logger.error('main_menu Error:', error)
+          })
+
+        break
+
       case 'validator_info': //case when callback button has valInfo type
         const key = callbackData.key
 
@@ -524,23 +607,6 @@ function attachHandlers(bot) {
         } else {
           bot.answerCallbackQuery(callbackQuery.id, "Didn't find data")
         }
-
-        break
-
-      case 'main_menu':
-        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (back to Main Menu)`)
-        bot
-          .editMessageText('Menu. Choose a button.', {
-            chat_id: chatId,
-            message_id: msg.message_id,
-            reply_markup: callbackButtonForStartCommand(),
-          })
-          .then(() => {
-            bot.answerCallbackQuery(callbackQuery.id)
-          })
-          .catch((error) => {
-            logger.error('main_menu Error:', error)
-          })
 
         break
 
@@ -577,7 +643,7 @@ function attachHandlers(bot) {
         )
 
         break
-
+      // VALIDATOR DISCORD ANNOUNCEMENTS
       case 'discord_announcements':
         handleDiscordAnnouncementCommand(bot, chatId, msgId).then(() => {
           bot.answerCallbackQuery(callbackQuery.id)
@@ -587,6 +653,7 @@ function attachHandlers(bot) {
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called discord_announcements (Subscribe To Discord Announcements)`,
         )
         break
+      // VALIDATOR DISCORD ANNOUNCEMENTS
       case 'update_discord_announcements':
         const channel = callbackQuery.data.split(':')[1]
 
@@ -599,6 +666,21 @@ function attachHandlers(bot) {
         }
         logger.info(
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called update_discord_announcements (Update Discord Announcements Subscription)`,
+        )
+        break
+      // GENERAL DISCORD ANNOUNCEMENTS
+      case 'update_general_discord_ann':
+        const generakChannelId = callbackQuery.data.split(':')[1]
+
+        try {
+          await updateGeneralAnnouncementSubscription(bot, chatId, msgId, generakChannelId)
+        } catch (err) {
+          await bot.sendMessage(chatId, `${err.message}`)
+        } finally {
+          await bot.answerCallbackQuery(callbackQuery.id)
+        }
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called update_general_discord_ann (Update General Discord Announcements Subscription)`,
         )
         break
 

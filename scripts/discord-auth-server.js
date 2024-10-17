@@ -3,7 +3,7 @@ import axios from 'axios'
 import dotenv from 'dotenv'
 import ClientDb from '../src/db-interaction/db-hendlers.js'
 import logger from '../src/utils/handle-logs/logger.js'
-import { backReplyForMainMenu } from '../src/bot/keyboards/keyboard.js'
+import { callbackButtonForDiscordNotVerify } from '../src/bot/keyboards/validators-menu-keyboard.js'
 
 dotenv.config()
 
@@ -113,7 +113,7 @@ async function sendTelegramMessage(chatId, message, isVerifed) {
     inline_keyboard: [[{ text: 'Subscribe To Discord Announcements 📢', callback_data: 'discord_announcements' }]],
   }
 
-  const notVerifiedButtons = backReplyForMainMenu()
+  const notVerifiedButtons = callbackButtonForDiscordNotVerify()
 
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
