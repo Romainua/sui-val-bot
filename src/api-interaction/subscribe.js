@@ -1,5 +1,5 @@
 import WebSocket from 'ws'
-import { stakingEventsRequest, epochChangeEventRequest } from './requests.js'
+import { stakingEventsRequest } from './requests.js'
 import logger from '../utils/handle-logs/logger.js'
 
 const WS_URL = process.env.WEBSOCKET_URL
