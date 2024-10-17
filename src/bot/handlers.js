@@ -32,7 +32,7 @@ const waitingIncludeEpochReward = new Map()
 
 function attachHandlers(bot) {
   //send msgs to users when bot have been updated
-  handleInitRestorSubscriptions(bot)
+  // handleInitRestorSubscriptions(bot)
 
   const LIST_OF_COMMANDS = [
     '/start',
@@ -364,11 +364,12 @@ function attachHandlers(bot) {
       case 'general_discord_announcements':
         bot
           .editMessageText(
-            '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\nThis subscription is only available to channel owners.',
+            '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\nThis subscription is only available to channel owners.\n\n[Add bot to channel](https://t.me/test_vali_bot?startgroup=addtogroup)',
             {
               chat_id: chatId,
               message_id: msgId,
               reply_markup: callbackFroDiscordAnnouncementsCommand(),
+              parse_mode: 'Markdown', // Enable Markdown parsing
             },
           )
           .then(() => bot.answerCallbackQuery(callbackQuery.id))

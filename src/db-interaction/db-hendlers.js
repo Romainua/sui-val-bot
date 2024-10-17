@@ -317,6 +317,77 @@ class ClientDb {
       throw err
     }
   }
+
+  async insertOrUpdateTgChannels(chatId, channel) {
+    try {
+      const res = await this.client.query('SELECT tg_channels FROM user_data WHERE id = $1', [chatId])
+      const currentChannels = res.rows[0]?.tg_channels || []
+
+      const combinedChannels = [...currentChannels, channel]
+
+      const uniqueChannels = _.uniqBy(combinedChannels, (item) => item.id)
+
+      const query = `
+      UPDATE user_data 
+      SET tg_channels = $2
+      WHERE id = $1;
+    `
+      await this.client.query(query, [chatId, JSON.stringify(uniqueChannels)])
+
+      logger.info(`Successfully inserted or updated Telegram channels for chat ID: ${chatId}`)
+    } catch (err) {
+      logger.error(`Failed to insert or update Telegram channels for user with ID: ${chatId}`, err)
+      throw err
+    }
+  }
+
+  async getUserTelegramChannels(chatId) {
+    try {
+      const result = await this.client.query('SELECT tg_channels FROM user_data WHERE id = $1', [chatId])
+      return result.rows[0]?.tg_channels
+    } catch (err) {
+      logger.error(`Error executing query to get tg_channels: ${err.stack}`)
+      return null
+    }
+  }
+
+  async getAllUsersWithTelegramChannels() {
+    try {
+      const query = `
+        SELECT id, tg_channels, general_ann_subscriptions
+        FROM user_data 
+        WHERE jsonb_array_length(tg_channels) > 0;
+      `
+      const result = await this.client.query(query)
+
+      return result.rows
+    } catch (err) {
+      logger.error(`Error executing query to get users with non-empty tg_channels: ${err.stack}`)
+      return []
+    }
+  }
+
+  async removeTgChannel(chatId, channel) {
+    const channelId = channel.id
+    try {
+      const res = await this.client.query('SELECT tg_channels FROM user_data WHERE id = $1', [chatId])
+      const currentChannels = res.rows[0]?.tg_channels || []
+
+      const updatedChannels = currentChannels.filter((channel) => channel.id !== channelId)
+
+      const query = `
+        UPDATE user_data 
+        SET tg_channels = $2
+        WHERE id = $1;
+      `
+      await this.client.query(query, [chatId, JSON.stringify(updatedChannels)])
+
+      logger.info(`Successfully removed Telegram channel (ID: ${channelId}) for chat ID: ${chatId}`)
+    } catch (err) {
+      logger.error(`Failed to remove Telegram channel (ID: ${channelId}) for user with ID: ${chatId}`, err)
+      throw err
+    }
+  }
 }
 
 export default new ClientDb()

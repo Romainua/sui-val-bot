@@ -5,50 +5,54 @@ export default async function sendTelegramMessageForDiscord(bot, chatId, message
   const formattedMessageContent = await replaceRoleMentionsAndAdText(messageContent)
 
   const text = `
-  **New Announcement in ${channelName}!**
+  New Announcement in ${channelName}
 
-${formattedMessageContent}
+  ${formattedMessageContent}
   `
   try {
     await bot.sendMessage(chatId, text, {
       reply_markup: {
         inline_keyboard: [[{ text: 'View on Discord 🔗', url: messageLink }]],
       },
-      parse_mode: 'Markdown',
       disable_web_page_preview: true,
     })
   } catch (error) {
+    if (error.response && error.response.body && error.response.body.description) {
+      const errorMessage = error.response.body.description
+
+      if (errorMessage.includes('need administrator rights in the channel chat')) {
+        logger.error('Error: The bot needs administrator rights in the channel chat to send messages.')
+        return
+      }
+    }
+
+    await bot.sendMessage(chatId, `New Announcement in ${channelName}`, {
+      reply_markup: {
+        inline_keyboard: [[{ text: 'View on Discord 🔗', url: messageLink }]],
+      },
+      disable_web_page_preview: true,
+    })
+
     logger.error(`Error resending message from Discord: ${JSON.stringify(error, null, 2)}`)
   }
 }
 
-function removeCustomEmojis(text) {
-  text = text.replace(/:[a-zA-Z0-9_]+:/g, '') // remove custom emojis in the format :emoji:
-
-  text = text.replace(/<[^>]+>/g, '') // remove mentions or other content inside <@123456789> or <#1234> etc.
-
-  return text
-}
-
 async function replaceRoleMentionsAndAdText(messageContent) {
-  // First remove custom emojis
-  messageContent = removeCustomEmojis(messageContent)
-
-  // Replace role mentions as before (implementation from the previous example)
   const roleMentionRegex = /<@&(\d+)>/g
   let roleMentions = [...messageContent.matchAll(roleMentionRegex)]
 
   for (const mention of roleMentions) {
     const roleId = mention[1]
     const roleName = await getRoleNameById(roleId)
+
     if (roleName) {
-      messageContent = messageContent.replace(mention[0], `@${roleName}`)
+      messageContent = messageContent.replace(mention[0], `${roleName}`)
     }
   }
 
-  // Remove content inside :ad:...:ad:
-  const adRegex = /:ad:.*?:ad:/g
-  messageContent = messageContent.replace(adRegex, '')
+  messageContent = messageContent.replace(/:[a-zA-Z0-9_]+:/g, '') // remove custom emojis in the format :emoji:
+
+  messageContent = messageContent.replace(/@/g, '')
 
   return messageContent
 }
