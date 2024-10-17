@@ -29,7 +29,7 @@ const waitingIncludeEpochReward = new Map()
 
 function attachHandlers(bot) {
   //send msgs to users when bot have been updated
-  handleInitRestorSubscriptions(bot)
+  // handleInitRestorSubscriptions(bot)
 
   const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/menu', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
 
@@ -262,15 +262,15 @@ function attachHandlers(bot) {
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /validator_info command`)
   })
 
-  bot.onText(new RegExp('/stakenotify'), (msg) => {
-    const chatId = msg.chat.id
+  // bot.onText(new RegExp('/stakenotify'), (msg) => {
+  //   const chatId = msg.chat.id
 
-    bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
-      reply_markup: subscribeKeyBoard(),
-    })
+  //   bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
+  //     reply_markup: subscribeKeyBoard(),
+  //   })
 
-    logger.info(`User ${msg.from.username} (${msg.from.id}) called /stakenotify command`)
-  })
+  //   logger.info(`User ${msg.from.username} (${msg.from.id}) called /stakenotify command`)
+  // })
 
   bot.onText(new RegExp('/rewards'), (msg) => {
     const chatId = msg.chat.id
@@ -334,19 +334,19 @@ function attachHandlers(bot) {
     }
 
     switch (action) {
-      case 'set_stake_notify':
-        bot
-          .editMessageText('Subscribe to staking events. Choose event.', {
-            chat_id: chatId,
-            message_id: msgId,
-            reply_markup: subscribeKeyBoard(),
-          })
-          .then(() => bot.answerCallbackQuery(callbackQuery.id))
-        logger.info(
-          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called set_stake_notify (subscribe to stake/unstake events)`,
-        )
+      // case 'set_stake_notify':
+      //   bot
+      //     .editMessageText('Subscribe to staking events. Choose event.', {
+      //       chat_id: chatId,
+      //       message_id: msgId,
+      //       reply_markup: subscribeKeyBoard(),
+      //     })
+      //     .then(() => bot.answerCallbackQuery(callbackQuery.id))
+      //   logger.info(
+      //     `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called set_stake_notify (subscribe to stake/unstake events)`,
+      //   )
 
-        break
+      //   break
 
       case 'show_val_info':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_val_info (Validator Info by Name)`)

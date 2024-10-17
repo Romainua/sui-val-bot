@@ -7,7 +7,7 @@ import ClientDb from '../../db-interaction/db-hendlers.js'
 dotenv.config()
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
-const DISCORD_CHANNEL_IDS = process.env.DISCORD_CHANNEL_IDS.split(',')
+const DISCORD_VALIDATORS_CHANNEL_IDS = process.env.DISCORD_VALIDATORS_CHANNEL_IDS.split(',')
 const GUILD_ID = process.env.GUILD_ID
 
 export default function discordForwarder(bot) {
@@ -15,7 +15,7 @@ export default function discordForwarder(bot) {
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   })
 
-  logger.info(`Monitoring these channels: ${DISCORD_CHANNEL_IDS}`)
+  logger.info(`Monitoring these channels: ${DISCORD_VALIDATORS_CHANNEL_IDS}`)
   client.login(DISCORD_BOT_TOKEN)
 
   // Event listener for when the bot is ready
@@ -27,7 +27,7 @@ export default function discordForwarder(bot) {
       return
     }
 
-    DISCORD_CHANNEL_IDS.forEach((channelId) => {
+    DISCORD_VALIDATORS_CHANNEL_IDS.forEach((channelId) => {
       const channel = guild.channels.cache.get(channelId.trim())
       if (!channel) {
         return logger.error(`Channel with ID ${channelId} not found in the guild.`)
@@ -41,7 +41,7 @@ export default function discordForwarder(bot) {
 
   // Listen for interactions (messages)
   client.on('messageCreate', async (message) => {
-    if (!DISCORD_CHANNEL_IDS.includes(message.channel.id)) {
+    if (!DISCORD_VALIDATORS_CHANNEL_IDS.includes(message.channel.id)) {
       return
     }
 
