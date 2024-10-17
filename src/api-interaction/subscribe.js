@@ -10,16 +10,12 @@ async function initWsConnection() {
 }
 
 //connection for stake events
-async function createWebSocketConnection(validatorAddress, type) {
+async function createWebSocketConnection() {
   const ws = await initWsConnection()
 
   ws.on('open', function open() {
     logger.info(`WebSocket connection established`)
-    if (type === 'epoch_reward') {
-      ws.send(JSON.stringify(epochChangeEventRequest(validatorAddress))) //send requst
-    } else {
-      ws.send(JSON.stringify(stakingEventsRequest(type, validatorAddress))) //send requst
-    }
+    ws.send(JSON.stringify(stakingEventsRequest())) //send requst
 
     setInterval(() => {
       ws.ping()

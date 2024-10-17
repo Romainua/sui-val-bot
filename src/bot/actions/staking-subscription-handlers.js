@@ -112,7 +112,7 @@ async function handleSubscruptions(bot, chatId) {
         const valAddress = subscription.address
         const type = subscription.type
 
-        const ws = await createWebSocketConnection(valAddress, type)
+        const ws = await createWebSocketConnection()
 
         subscription.ws = ws
 
@@ -129,7 +129,14 @@ async function handleSubscruptions(bot, chatId) {
               opensWs(subscription, bot, chatId) // Reopen the connection with the existing subscription
             }, 30000)
           } else if (parsedData.method === 'suix_subscribeEvent') {
-            messageHandler(bot, chatId, subscription, data)
+            const parsedJson = parsedData.params.result.parsedJson
+            const result = parsedData.params.result
+            const eventType = result.type === '0x3::validator::StakingRequestEvent' ? 'delegate' : 'undelegate'
+            const validatorAddress = parsedJson.validator_address
+
+            if (validatorAddress === subscription.address && type === eventType) {
+              messageHandler(bot, chatId, subscription, data)
+            }
           } else if (typeof parsedData.result === 'number') {
             subscription.subscribeId = parsedData.result
             logger.info(
