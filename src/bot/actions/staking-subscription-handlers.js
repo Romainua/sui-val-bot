@@ -11,7 +11,7 @@ const WS_URL = process.env.WEBSOCKET_URL
 
 const usersSubscriptions = new Map() //list of all active Subscriptions
 
-async function handleInitRestorSubscriptions() {
+async function handleInitRestorSubscriptions(bot) {
   await ClientDb.createTableIfNotExists()
 
   ClientDb.getAllData()
@@ -44,6 +44,7 @@ async function handleInitRestorSubscriptions() {
           }
         }
       }
+      await handleSubscruptions(bot)
     })
     .catch((err) => {
       logger.error(`Error in handleInitRestorSubscriptions: ${err}`)
@@ -122,7 +123,9 @@ async function handleSubscruptions(bot) {
   })
 
   ws.on('open', function open() {
-    ws.send(JSON.stringify(STAKING_REQUEST))
+    setTimeout(function () {
+      ws.send(JSON.stringify(STAKING_REQUEST))
+    }, 3000)
   })
 
   ws.on('close', function close() {

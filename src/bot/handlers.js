@@ -36,9 +36,7 @@ const waitingIncludeEpochReward = new Map()
 
 function attachHandlers(bot) {
   //send msgs to users when bot have been updated
-  handleInitRestorSubscriptions(bot).then(() => {
-    handleSubscruptions(bot)
-  })
+  handleInitRestorSubscriptions(bot)
 
   const LIST_OF_COMMANDS = [
     '/start',
