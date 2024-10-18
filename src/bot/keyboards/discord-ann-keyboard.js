@@ -1,11 +1,13 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
+const BOT_INVITE_LINK = process.env.BOT_INVITE_LINK
+
 function callbackFroDiscordAnnouncementsCommand() {
   return {
     inline_keyboard: [
       [{ text: '🛠️ Manage Discord Channels', callback_data: 'general_discord_menage' }],
-      [{ text: '🤖 Add Bot To Channel', url: 'https://t.me/test_vali_bot?startgroup=addtogroup' }],
+      [{ text: '🤖 Add Bot To Channel', url: BOT_INVITE_LINK }],
       [{ text: '⬅ Back', callback_data: 'main_menu' }],
     ],
   }
@@ -27,7 +29,7 @@ function callbackButtonWithChannels(listOfSubscriptions) {
 function callbackAddBotToChannel() {
   const BOT_URL = process.env.BOT_URL
   return {
-    inline_keyboard: [[{ text: 'Add Bot To Channel', url: BOT_URL }], [{ text: '⬅ Back', callback_data: 'main_menu' }]],
+    inline_keyboard: [[{ text: 'Add Bot To Channel', url: BOT_INVITE_LINK }], [{ text: '⬅ Back', callback_data: 'main_menu' }]],
   }
 }
 

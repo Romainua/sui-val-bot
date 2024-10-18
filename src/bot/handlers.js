@@ -25,6 +25,8 @@ import { updateAnnouncementSubscription, handleDiscordAnnouncementCommand } from
 import { handleDiscordGeneralCommand, updateGeneralAnnouncementSubscription } from './actions/general-discord-handler.js'
 import { START_COMMAND_MESSAGE } from '../utils/constants/bot-messages.js'
 
+const BOT_INVITE_LINK = process.env.BOT_INVITE_LINK
+
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
 const waitingValidatorNameForRewards = new Map()
@@ -270,7 +272,7 @@ function attachHandlers(bot) {
 
     bot.sendMessage(
       chatId,
-      '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](https://t.me/test_vali_bot?startgroup=addtogroup)',
+      `📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](${BOT_INVITE_LINK})`,
       {
         reply_markup: callbackFroDiscordAnnouncementsCommand(),
         parse_mode: 'Markdown',
@@ -379,7 +381,7 @@ function attachHandlers(bot) {
       case 'general_discord_announcements':
         bot
           .editMessageText(
-            '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](https://t.me/test_vali_bot?startgroup=addtogroup)',
+            `📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](${BOT_INVITE_LINK})`,
             {
               chat_id: chatId,
               message_id: msgId,

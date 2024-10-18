@@ -24,7 +24,14 @@ async function handleDiscordGeneralCommand(bot, chatId, msgId) {
   try {
     let listOfSubscriptions = await ClientDb.getGeneralAnnouncementSubscriptions(chatId)
 
-    const hasNonEmptyValues = DISCORD_GENERAL_CHANNEL_IDS.some((channel) => channel.trim() !== '')
+    const hasNonEmptyValues =
+      Array.isArray(DISCORD_GENERAL_CHANNEL_IDS) &&
+      DISCORD_GENERAL_CHANNEL_IDS.length > 0 &&
+      DISCORD_GENERAL_CHANNEL_IDS.some((channelId) => channelId.trim() !== '')
+
+    if (!hasNonEmptyValues) {
+      listOfSubscriptions = []
+    }
 
     if (DISCORD_GENERAL_CHANNEL_IDS.length !== listOfSubscriptions.length && hasNonEmptyValues) {
       await ClientDb.dropGeneralAnnouncementSubscriptions(chatId) //drop all old subscriptions
