@@ -31,7 +31,7 @@ function attachHandlers(bot) {
   //send msgs to users when bot have been updated
   handleInitRestorSubscriptions(bot)
 
-  const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/menu', '/gasprice', '/rewards', '/valinfo'] //commands on telegram
+  const LIST_OF_COMMANDS = ['/start', '/stakenotify', '/menu', '/gasprice', '/rewards', '/validator_info', '/announcement'] //commands on telegram
 
   //handling custom messages, input name, key, gas, commission...
   bot.on('message', async (msg) => {
@@ -265,7 +265,7 @@ function attachHandlers(bot) {
   bot.onText(new RegExp('/stakenotify'), (msg) => {
     const chatId = msg.chat.id
 
-    bot.sendMessage(chatId, 'Subscribe to stake/unstake events. Choose event.', {
+    bot.sendMessage(chatId, 'Get real-time updates on staking events. Manage your subscriptions below', {
       reply_markup: subscribeKeyBoard(),
     })
 
@@ -336,7 +336,7 @@ function attachHandlers(bot) {
     switch (action) {
       case 'set_stake_notify':
         bot
-          .editMessageText('Subscribe to staking events. Choose event.', {
+          .editMessageText('Get real-time updates on staking events. Manage your subscriptions below', {
             chat_id: chatId,
             message_id: msgId,
             reply_markup: subscribeKeyBoard(),
@@ -496,7 +496,7 @@ function attachHandlers(bot) {
         waitingForSizeOfTokensForWs.set(chatId, false)
 
         bot
-          .editMessageText('Subscribe to staking events. Choose event.', {
+          .editMessageText('Get real-time updates on staking events. Manage your subscriptions below', {
             chat_id: chatId,
             message_id: msg.message_id,
             reply_markup: subscribeKeyBoard(),

@@ -1,12 +1,11 @@
 import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
-import createWebSocketConnection from '../../api-interaction/subscribe.js'
-import { unsubscribeCallBackButton, subscribeKeyBoard } from '../keyboards/keyboard.js'
-import WebSocket from 'ws'
+import webSocketManager from '../../api-interaction/subscribe.js'
+import { unsubscribeCallBackButton, keyboardForNotActiveSubscriptions } from '../keyboards/keyboard.js'
 import messageHandler from '../../lib/msg-handlers/staking-msg-handler.js'
 import getAmountOfTokens from '../../utils/getTokenAmountString.js'
 
-const userSubscriptions = [] //list of all active Subscriptions
+const usersSubscriptions = new Map() //list of all active Subscriptions
 
 async function handleInitRestorSubscriptions(bot) {
   await ClientDb.createTableIfNotExists()
@@ -17,7 +16,7 @@ async function handleInitRestorSubscriptions(bot) {
         const subscribe_data = dataUser.subscribe_data
 
         if (subscribe_data.length > 0) {
-          const chatId = dataUser.id
+          const chatId = Number(dataUser.id) // convert to number because js convert to strings to avoid precision loss
 
           for (const subscription of subscribe_data) {
             const valAddress = subscription.address
@@ -25,6 +24,7 @@ async function handleInitRestorSubscriptions(bot) {
             const type = subscription.type
             const sizeOfTokens = subscription.tokenSize || 'All'
             const isEpochReward = type === 'delegate' ? subscription.isEpochReward : false
+
             const amountOfTokens =
               sizeOfTokens === 100
                 ? 100
@@ -37,16 +37,13 @@ async function handleInitRestorSubscriptions(bot) {
                 : 0
 
             await handleSaveSubscriptionToCache(chatId, valAddress, valName, type, amountOfTokens, isEpochReward) //save subscriptions data to cache
-
-            await handleSubscruptions(bot, chatId)
-
-            await new Promise((resolve) => setTimeout(resolve, 1000))
           }
         }
       }
+      await handleSubscruptions(bot)
     })
     .catch((err) => {
-      logger.error(`db doesn't have data: ${err}`)
+      logger.error(`Error in handleInitRestorSubscriptions: ${err}`)
     })
 }
 
@@ -62,19 +59,31 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
       ? 100000
       : 0
 
-  const isCacheHasEvent = userSubscriptions[chatId]?.find(
-    (subscriptionObject) =>
-      subscriptionObject.name?.toLowerCase() === validatorName?.toLowerCase() && subscriptionObject.type === type,
-  )
+  let isCacheHasEvent = false
+
+  const userSubscriptionData = usersSubscriptions.get(chatId)
+
+  if (userSubscriptionData) {
+    isCacheHasEvent = userSubscriptionData.find(
+      (subscriptionObject) =>
+        subscriptionObject.address === valAddress &&
+        subscriptionObject.name.toLowerCase() === validatorName.toLowerCase() &&
+        subscriptionObject.type === type,
+    )
+  }
 
   if (!isCacheHasEvent) {
-    handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens, isEpochReward)
+    try {
+      handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens, isEpochReward)
 
-    await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens, isEpochReward)
+      await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens, isEpochReward)
 
-    await handleSubscruptions(bot, chatId)
+      await handleSubscruptions(bot, chatId)
 
-    return Promise.resolve()
+      return Promise.resolve()
+    } catch (error) {
+      logger.error(`Error in init subscription: ${err}`)
+    }
   } else {
     return Promise.reject('This type of subscription already exists')
   }
@@ -82,8 +91,8 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
 
 //save subscription data to cache
 async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, sizeOfTokens, isEpochReward) {
-  if (!userSubscriptions[chatId]) {
-    userSubscriptions[chatId] = [] //if current chat id doesn't exist init empty array for objects with subscribe data
+  if (!usersSubscriptions.get(chatId)) {
+    usersSubscriptions.set(chatId, []) //if current chat id doesn't exist init empty array for objects with subscribe data
   }
 
   const eventType = type === 'delegate' ? 'Stake' : type === 'undelegate' ? 'Unstake' : 'Reward'
@@ -91,7 +100,6 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
   const stringedAmount = getAmountOfTokens(sizeOfTokens)
 
   const subscribeData = {
-    ws: null,
     name: valName,
     type: type,
     text: `👤 ${valName} | 💵 ${stringedAmount} | ${eventType}`,
@@ -100,89 +108,43 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
     subscribeId: null,
     isEpochReward: isEpochReward,
   }
-  userSubscriptions[chatId].push(subscribeData) //add subscription data to user array
+  const addedSubscription = usersSubscriptions.get(chatId)
+  usersSubscriptions.set(chatId, [...addedSubscription, subscribeData]) //add subscription data to user array
 }
 
-async function handleSubscruptions(bot, chatId) {
-  for (const subscription of userSubscriptions[chatId]) {
-    //check if current subscription has open ws connection
-    if (!(subscription.ws?.readyState === WebSocket.OPEN)) {
-      //there is creating new ws connection with data from cache and when 'close' it callback func again
-      const opensWs = async (subscription, bot, chatId) => {
-        const valAddress = subscription.address
-        const type = subscription.type
+async function handleSubscruptions(bot) {
+  const ws = webSocketManager.getInstance()
 
-        const ws = await createWebSocketConnection()
+  ws.on('message', function message(data) {
+    const parsedData = JSON.parse(data)
 
-        subscription.ws = ws
+    if ('error' in parsedData) {
+      logger.error(`Error in answer from ws request.`)
+      logger.error(JSON.stringify(parsedData, null, 2))
+    } else if (parsedData.method === 'suix_subscribeEvent') {
+      const parsedJson = parsedData.params.result.parsedJson
+      const result = parsedData.params.result
+      const eventType = result.type === '0x3::validator::StakingRequestEvent' ? 'delegate' : 'undelegate'
+      const validatorAddress = parsedJson.validator_address
 
-        ws.on('message', function message(data) {
-          const parsedData = JSON.parse(data)
+      for (const [key, subscriptions] of usersSubscriptions) {
+        const chatId = key
 
-          if ('error' in parsedData) {
-            ws.close()
-            logger.error(`Error in answer from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
-            logger.error(JSON.stringify(parsedData, null, 2))
+        const matchedSubscription = subscriptions.find((sub) => sub.address === validatorAddress && sub.type === eventType) // Find the matching subscription on user subscriptions
 
-            setTimeout(() => {
-              // Initiate a new connection instead of using the old ws object
-              opensWs(subscription, bot, chatId) // Reopen the connection with the existing subscription
-            }, 30000)
-          } else if (parsedData.method === 'suix_subscribeEvent') {
-            const parsedJson = parsedData.params.result.parsedJson
-            const result = parsedData.params.result
-            const eventType = result.type === '0x3::validator::StakingRequestEvent' ? 'delegate' : 'undelegate'
-            const validatorAddress = parsedJson.validator_address
-
-            if (validatorAddress === subscription.address && type === eventType) {
-              messageHandler(bot, chatId, subscription, data)
-            }
-          } else if (typeof parsedData.result === 'number') {
-            subscription.subscribeId = parsedData.result
-            logger.info(
-              `Success subscription. Validator: ${subscription.name} Type: ${subscription.type} Result: ${parsedData.result}`,
-            )
-          } else if (parsedData.result) {
-            logger.info(
-              `Success unsubscribed. Validator: ${subscription.name} Type: ${subscription.type} Result: ${parsedData.result}`,
-            )
-          } else {
-            logger.warn(`Unexpected response from ws request. Validator: ${subscription.name} Type: ${subscription.type}`)
-            logger.warn(JSON.stringify(parsedData, null, 2))
-          }
-        })
-
-        ws.on('error', (err) => {
-          logger.error(`Web Socket connection error. Validator: ${subscription.name} Type: ${subscription.type}`)
-          logger.error(err)
-        })
-
-        ws.on('close', async function close() {
-          //if subscription data was remove from cache, try to find if NaN connection won't open because user remove it from cache
-          //check if cache already has subscription data
-          const isCacheHasEvent = userSubscriptions[chatId].find(
-            (subscriptionObject) => subscriptionObject.address === valAddress && subscriptionObject.type === type,
-          )
-
-          const isDbHasData = await ClientDb.getUserData(chatId)
-
-          if (isCacheHasEvent && isDbHasData.length > 0) {
-            logger.warn('Web Socket connection closed. Reopening...')
-            subscription.ws = null
-            setTimeout(() => {
-              opensWs(subscription, bot, chatId)
-            }, 5000)
-          } else {
-            logger.warn('Web Socket connection closed.')
-            subscription.ws = null
-            return
-          }
-        })
+        if (matchedSubscription) {
+          messageHandler(bot, chatId, matchedSubscription, data) // If a match is found, handle the message accordingly
+        }
       }
-      //open connection with listners for each subscription
-      await opensWs(subscription, bot, chatId)
+    } else if (typeof parsedData.result === 'number') {
+      logger.info(`Success events subscribed. Result: ${parsedData.result}`)
+    } else if (parsedData.result) {
+      logger.info(`Success unsubscribed. Result: ${parsedData.result}`)
+    } else {
+      logger.warn(`Unexpected response from ws request.`)
+      logger.warn(JSON.stringify(parsedData, null, 2))
     }
-  }
+  })
 }
 
 //handling save subscriptions to db
@@ -224,48 +186,53 @@ async function handleDropSubscriptionFromDB(chatId, validatorName, type, address
 }
 
 async function handleUnsubscribeFromStakeEvents(chatId, valName, eventsType) {
-  if (userSubscriptions[chatId]) {
-    const index = userSubscriptions[chatId].findIndex((obj) => {
+  const userSubscriptions = usersSubscriptions.get(chatId)
+
+  if (userSubscriptions) {
+    const index = userSubscriptions.findIndex((obj) => {
       return obj.name.toLowerCase() === valName.toLowerCase() && eventsType === obj.type
     })
+    try {
+      if (index !== -1) {
+        // Get data by index
+        const address = userSubscriptions[index].address
+        const tokenSize = userSubscriptions[index].tokenSize
+        const isEpochReward = userSubscriptions[index].isEpochReward
 
-    if (index !== -1) {
-      //get data by index
-      const address = userSubscriptions[chatId][index].address
-      const ws = userSubscriptions[chatId][index].ws
-      const subscriptionId = userSubscriptions[chatId][index].subscribeId
-      const tokenSize = userSubscriptions[chatId][index].tokenSize
-      const isEpochReward = userSubscriptions[chatId][index].isEpochReward
+        await handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize, isEpochReward)
 
-      //drop subscriptions from db
-      handleDropSubscriptionFromDB(chatId, valName, eventsType, address, tokenSize, isEpochReward).then(() => {
-        //send unsubscribe requests with id of subscription
-        ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'suix_unsubscribeEvent', params: [subscriptionId] }))
-        //remove from cache after success delete from db
-        userSubscriptions[chatId].splice(index, 1)
-        // close ws connection
-        ws.close()
-      })
+        userSubscriptions.splice(index, 1)
 
-      logger.info(`${valName} with ${eventsType} type, have been unsubscribed`)
+        if (userSubscriptions.length === 0) {
+          usersSubscriptions.delete(chatId)
+        } else {
+          usersSubscriptions.set(chatId, userSubscriptions)
+        }
+
+        logger.info(`${valName} with ${eventsType} type has been unsubscribed`)
+      }
+    } catch (error) {
+      logger.error(`Error drop from db ${valName} with ${eventsType}: ${error.message}`)
     }
   }
 }
 
 async function handleTotalSubscriptions(bot, chatId, msg) {
-  if (userSubscriptions[chatId]) {
+  const userSubscriptions = usersSubscriptions.get(chatId)
+
+  if (userSubscriptions) {
     bot.editMessageText('Click a button below to unsubscribe from specific event.\nYou can re-enable them anytime.', {
       chat_id: chatId,
       message_id: msg.message_id,
       reply_markup: {
-        inline_keyboard: unsubscribeCallBackButton(userSubscriptions[chatId]),
+        inline_keyboard: unsubscribeCallBackButton(userSubscriptions),
       },
     })
   } else {
-    bot.editMessageText('⭕ You have not subscribed', {
+    bot.editMessageText(`You don't have active subscriptions. Chooose event below`, {
       chat_id: chatId,
       message_id: msg.message_id,
-      reply_markup: subscribeKeyBoard(),
+      reply_markup: keyboardForNotActiveSubscriptions(),
     })
   }
 }
