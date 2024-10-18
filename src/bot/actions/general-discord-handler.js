@@ -36,7 +36,7 @@ async function handleDiscordGeneralCommand(bot, chatId, msgId) {
       listOfSubscriptions = await ClientDb.getGeneralAnnouncementSubscriptions(chatId)
     }
 
-    const message = `Select a channel to Subscribe to Discord Announcements:`
+    const message = `Select a channel to receive Discord announcements.\nYou will get updates from this channel on your own channels.`
 
     bot.editMessageText(message, {
       chat_id: chatId,

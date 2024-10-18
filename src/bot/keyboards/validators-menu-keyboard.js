@@ -3,9 +3,10 @@ dotenv.config()
 
 function callbackButtonForStartCommand() {
   return {
+    remove_keyboard: true,
     inline_keyboard: [
       [
-        { text: 'Handle Discord Announcements 📢', callback_data: 'general_discord_announcements' },
+        { text: `I'm Channel Owner 📢`, callback_data: 'general_discord_announcements' },
         { text: `I'm Validator 🤖`, callback_data: 'validators_menu' },
       ],
     ],
@@ -14,6 +15,7 @@ function callbackButtonForStartCommand() {
 
 function subscribeKeyBoard() {
   return {
+    remove_keyboard: true,
     inline_keyboard: [
       [
         { text: 'Stake 🟢', callback_data: 'delegation' },

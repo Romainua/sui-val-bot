@@ -4,6 +4,7 @@ import {
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
   handleInitSubscription,
+  handleSubscruptions,
 } from './actions/staking-subscription-handlers.js'
 
 import { showCurrentState } from '../api-interaction/system-state.js'
@@ -22,6 +23,7 @@ import { callbackFroDiscordAnnouncementsCommand } from './keyboards/discord-ann-
 import initEventsSubscribe from '../utils/initEventsSubscribe.js'
 import { updateAnnouncementSubscription, handleDiscordAnnouncementCommand } from './actions/discord-annc-handler.js'
 import { handleDiscordGeneralCommand, updateGeneralAnnouncementSubscription } from './actions/general-discord-handler.js'
+import { START_COMMAND_MESSAGE } from '../utils/constants/bot-messages.js'
 
 const waitingForValidatorName = new Map() //map for validator name
 const validatorNames = new Map() //map to get name for call callback fn, used name as argument
@@ -32,7 +34,8 @@ const waitingIncludeEpochReward = new Map()
 
 function attachHandlers(bot) {
   //send msgs to users when bot have been updated
-  // handleInitRestorSubscriptions(bot)
+  handleInitRestorSubscriptions(bot)
+  handleSubscruptions(bot)
 
   const LIST_OF_COMMANDS = [
     '/start',
@@ -41,7 +44,9 @@ function attachHandlers(bot) {
     '/gasprice',
     '/rewards',
     '/validator_info',
-    '/announcements',
+    '/validator_menu',
+    '/validator_announcements',
+    '/discord_announcements',
     '/events_history',
   ] //commands on telegram
 
@@ -203,7 +208,7 @@ function attachHandlers(bot) {
           const validatoraddress = validatorInfo.suiAddress
           const sizeOfTokens = 'All'
 
-          handleInitSubscription(bot, chatId, validatoraddress, validatorName, type, sizeOfTokens)
+          handleInitSubscription(chatId, validatoraddress, validatorName, type, sizeOfTokens)
             .then(() => {
               waitingForSizeOfTokensForWs.set(chatId, false)
 
@@ -244,11 +249,7 @@ function attachHandlers(bot) {
 
     handleStartCommand(chatId, msg)
 
-    bot.sendMessage(
-      chatId,
-      'Hello and welcome! 🎉 I’m here to help you stay informed and manage all your Sui-related activities efficiently.',
-      { reply_markup: callbackButtonForStartCommand() },
-    )
+    bot.sendMessage(chatId, START_COMMAND_MESSAGE, { reply_markup: callbackButtonForStartCommand() })
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
   })
@@ -264,14 +265,28 @@ function attachHandlers(bot) {
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
   })
+  bot.onText(new RegExp('/discord_announcements'), (msg) => {
+    const chatId = msg.chat.id
+
+    bot.sendMessage(
+      chatId,
+      '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](https://t.me/test_vali_bot?startgroup=addtogroup)',
+      {
+        reply_markup: callbackFroDiscordAnnouncementsCommand(),
+        parse_mode: 'Markdown',
+      },
+    )
+
+    logger.info(
+      `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called discord_announcements (General Discord Announcements)`,
+    )
+  })
 
   bot.onText(new RegExp('/menu'), (msg) => {
     const chatId = msg.chat.id
-    bot.sendMessage(
-      chatId,
-      'I’m here to help you stay informed and manage all your Sui-related activities efficiently.\nChoose a button. ',
-      { reply_markup: callbackButtonForStartCommand() },
-    )
+    bot.sendMessage(chatId, 'Manage your Sui activities with ease! Choose an option below to get started.', {
+      reply_markup: callbackButtonForStartCommand(),
+    })
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
   })
 
@@ -328,7 +343,7 @@ function attachHandlers(bot) {
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /events_history command`)
   })
 
-  bot.onText(new RegExp('/announcment'), async (msg) => {
+  bot.onText(new RegExp('/validator_announcements'), async (msg) => {
     const chatId = msg.chat.id
 
     handleDiscordAnnouncementCommand(bot, chatId)
@@ -364,12 +379,12 @@ function attachHandlers(bot) {
       case 'general_discord_announcements':
         bot
           .editMessageText(
-            '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\nThis subscription is only available to channel owners.\n\n[Add bot to channel](https://t.me/test_vali_bot?startgroup=addtogroup)',
+            '📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](https://t.me/test_vali_bot?startgroup=addtogroup)',
             {
               chat_id: chatId,
               message_id: msgId,
               reply_markup: callbackFroDiscordAnnouncementsCommand(),
-              parse_mode: 'Markdown', // Enable Markdown parsing
+              parse_mode: 'Markdown',
             },
           )
           .then(() => bot.answerCallbackQuery(callbackQuery.id))
@@ -574,14 +589,11 @@ function attachHandlers(bot) {
       case 'main_menu':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (back to Main Menu)`)
         bot
-          .editMessageText(
-            'I’m here to help you stay informed and manage all your Sui-related activities efficiently.\nChoose a button. ',
-            {
-              chat_id: chatId,
-              message_id: msg.message_id,
-              reply_markup: callbackButtonForStartCommand(),
-            },
-          )
+          .editMessageText('Manage your Sui activities with ease! Choose an option below to get started.', {
+            chat_id: chatId,
+            message_id: msg.message_id,
+            reply_markup: callbackButtonForStartCommand(),
+          })
           .then(() => {
             bot.answerCallbackQuery(callbackQuery.id)
           })

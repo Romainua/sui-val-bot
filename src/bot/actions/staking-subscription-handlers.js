@@ -40,14 +40,13 @@ async function handleInitRestorSubscriptions(bot) {
           }
         }
       }
-      await handleSubscruptions(bot)
     })
     .catch((err) => {
       logger.error(`Error in handleInitRestorSubscriptions: ${err}`)
     })
 }
 
-async function handleInitSubscription(bot, chatId, valAddress, validatorName, type, sizeOfTokens, isEpochReward = true) {
+async function handleInitSubscription(chatId, valAddress, validatorName, type, sizeOfTokens, isEpochReward = true) {
   const amountOfTokens =
     sizeOfTokens === '100+'
       ? 100
@@ -77,8 +76,6 @@ async function handleInitSubscription(bot, chatId, valAddress, validatorName, ty
       handleSaveSubscribesToDB(chatId, validatorName, type, valAddress, amountOfTokens, isEpochReward)
 
       await handleSaveSubscriptionToCache(chatId, valAddress, validatorName, type, amountOfTokens, isEpochReward)
-
-      await handleSubscruptions(bot, chatId)
 
       return Promise.resolve()
     } catch (error) {

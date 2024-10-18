@@ -11,7 +11,7 @@ export default function initEventsSubscribe(
   isEpochReward,
   waitingIncludeEpochReward,
 ) {
-  handleInitSubscription(bot, chatId, validatorAddress, valName, type, sizeOfTokens, isEpochReward)
+  handleInitSubscription(chatId, validatorAddress, valName, type, sizeOfTokens, isEpochReward)
     .then(() => {
       waitingIncludeEpochReward.set(chatId, false)
 

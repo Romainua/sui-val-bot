@@ -6,7 +6,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export default async function messageSender(bot, chatId, message, subscription) {
   try {
-    bot.sendMessage(chatId, message)
+    bot.sendMessage(chatId, message, { parse_mode: 'Markdown', disable_web_page_preview: true })
   } catch (error) {
     if (error.response && error.response.statusCode === 403) {
       logger.warn(`User with chat ID ${chatId} blocked the bot. Deleting from the database...`)
@@ -23,7 +23,7 @@ export default async function messageSender(bot, chatId, message, subscription) 
 
       // Retry sending the message
       try {
-        bot.sendMessage(chatId, message)
+        bot.sendMessage(chatId, message, { parse_mode: 'Markdown', disable_web_page_preview: true })
       } catch (retryError) {
         logger.error(`Retry failed on message sending for chat ID ${chatId}. ERROR:`, retryError)
       }
