@@ -36,8 +36,9 @@ const waitingIncludeEpochReward = new Map()
 
 function attachHandlers(bot) {
   //send msgs to users when bot have been updated
-  handleInitRestorSubscriptions(bot)
-  handleSubscruptions(bot)
+  handleInitRestorSubscriptions(bot).then(() => {
+    handleSubscruptions(bot)
+  })
 
   const LIST_OF_COMMANDS = [
     '/start',
@@ -276,6 +277,7 @@ function attachHandlers(bot) {
       {
         reply_markup: callbackFroDiscordAnnouncementsCommand(),
         parse_mode: 'Markdown',
+        disable_web_page_preview: true,
       },
     )
 
@@ -385,6 +387,7 @@ function attachHandlers(bot) {
             {
               chat_id: chatId,
               message_id: msgId,
+              disable_web_page_preview: true,
               reply_markup: callbackFroDiscordAnnouncementsCommand(),
               parse_mode: 'Markdown',
             },

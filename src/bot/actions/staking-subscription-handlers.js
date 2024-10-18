@@ -1,13 +1,17 @@
 import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
-import webSocketManager from '../../api-interaction/subscribe.js'
+import wsClient from '../../api-interaction/ws-handler.js'
 import { unsubscribeCallBackButton, keyboardForNotActiveSubscriptions } from '../keyboards/validators-menu-keyboard.js'
 import messageHandler from '../../lib/msg-handlers/staking-msg-handler.js'
 import getAmountOfTokens from '../../utils/getTokenAmountString.js'
+import { STAKING_REQUEST } from '../../api-interaction/requests.js'
+import WebSocket from 'ws'
+
+const WS_URL = process.env.WEBSOCKET_URL
 
 const usersSubscriptions = new Map() //list of all active Subscriptions
 
-async function handleInitRestorSubscriptions(bot) {
+async function handleInitRestorSubscriptions() {
   await ClientDb.createTableIfNotExists()
 
   ClientDb.getAllData()
@@ -110,7 +114,23 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
 }
 
 async function handleSubscruptions(bot) {
-  const ws = webSocketManager.getInstance()
+  const ws = new WebSocket(WS_URL)
+
+  ws.on('error', function (error) {
+    logger.error(`Error in connection: ${error.message}`)
+    ws.close()
+  })
+
+  ws.on('open', function open() {
+    ws.send(JSON.stringify(STAKING_REQUEST))
+  })
+
+  ws.on('close', function close() {
+    logger.info('Websocket connection closed, will reconnect in 5 seconds')
+    setTimeout(function () {
+      handleSubscruptions(bot)
+    }, 5000)
+  })
 
   ws.on('message', function message(data) {
     const parsedData = JSON.parse(data)

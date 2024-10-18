@@ -27,7 +27,6 @@ function callbackButtonWithChannels(listOfSubscriptions) {
 }
 
 function callbackAddBotToChannel() {
-  const BOT_URL = process.env.BOT_URL
   return {
     inline_keyboard: [[{ text: 'Add Bot To Channel', url: BOT_INVITE_LINK }], [{ text: '⬅ Back', callback_data: 'main_menu' }]],
   }

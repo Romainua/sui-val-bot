@@ -31,6 +31,7 @@ async function handleDiscordGeneralCommand(bot, chatId, msgId) {
 
     if (!hasNonEmptyValues) {
       listOfSubscriptions = []
+      logger.warn(`DISCORD_GENERAL_CHANNEL_IDS env variable is empty or not set. Set it on .env file`)
     }
 
     if (DISCORD_GENERAL_CHANNEL_IDS.length !== listOfSubscriptions.length && hasNonEmptyValues) {
