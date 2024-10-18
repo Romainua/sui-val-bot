@@ -26,6 +26,19 @@ function subscribeKeyBoard() {
   }
 }
 
+function keyboardForNotActiveSubscriptions() {
+  return {
+    inline_keyboard: [
+      [
+        { text: 'Stake 🟢', callback_data: 'delegation' },
+        { text: 'Unstake 🔴', callback_data: 'undelegation' },
+      ],
+      [{ text: 'Epoch Reward 🏅', callback_data: 'epoch_reward' }],
+      [{ text: '⬅ Back', callback_data: 'main_menu' }],
+    ],
+  }
+}
+
 //button for back in subscribes
 function backReply() {
   return [[{ text: '⬅ Back', callback_data: 'back_button' }]]
@@ -124,6 +137,7 @@ function callbackButtonForDiscordVerified(listOfSubscriptions) {
 
 export {
   subscribeKeyBoard,
+  keyboardForNotActiveSubscriptions,
   backReply,
   unsubscribeCallBackButton,
   callbackButtonForStartCommand,

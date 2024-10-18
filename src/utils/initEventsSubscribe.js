@@ -22,7 +22,7 @@ export default function initEventsSubscribe(
     .catch(() => {
       bot.sendMessage(
         chatId,
-        `❗ This event has already been added for ${valName}.\nIf you want change amount of tokens, please unsubscribe from old one.`,
+        `This event has already been added for ${valName}❗️\n\n If you want change, please unsubscribe from old one.`,
         {
           reply_markup: subscribeKeyBoard(),
         },

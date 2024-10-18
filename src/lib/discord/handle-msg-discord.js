@@ -21,7 +21,7 @@ export default async function sendTelegramMessageForDiscord(bot, chatId, message
       const errorMessage = error.response.body.description
 
       if (errorMessage.includes('need administrator rights in the channel chat')) {
-        logger.error('Error: The bot needs administrator rights in the channel chat to send messages.')
+        logger.warn('Error: The bot needs administrator rights in the channel chat to send messages.')
         return
       }
     }
