@@ -70,8 +70,8 @@ export default async function messageHandler(bot, chatId, subscription, data) {
     messageSender(bot, chatId, message, subscription)
   } else if (reducedAmount >= sizeOfTokens) {
     const meesage = ` ${
-      type === '0x3::validator::StakingRequestEvent' ? '➕ Staked' : '➖ Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
-    } ${valName}\nAmount: ${formattedPrincipal} SUI\n[Tx Link - Click here](https://explorer.sui.io/txblock/${tx})`
+      type === '0x3::validator::StakingRequestEvent' ? '🟢 Staked' : '🔴 Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
+    }\nValidator: ${valName}\nAmount: ${formattedPrincipal} SUI\n[Tx Link - Click here](https://explorer.sui.io/txblock/${tx})`
 
     messageSender(bot, chatId, meesage, subscription)
   }

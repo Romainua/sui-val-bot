@@ -4,7 +4,6 @@ import {
   handleTotalSubscriptions,
   handleUnsubscribeFromStakeEvents,
   handleInitSubscription,
-  handleSubscruptions,
 } from './actions/staking-subscription-handlers.js'
 
 import { showCurrentState } from '../api-interaction/system-state.js'
