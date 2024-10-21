@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   telegram-bot:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.telegram
     container_name: telegram_bot_container
     command: node src/index.js
     restart: unless-stopped
@@ -15,7 +17,9 @@ services:
       - default
 
   discord-auth-server:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.discord
     container_name: discord_auth_server
     command: node scripts/discord-auth-server.js
     restart: unless-stopped

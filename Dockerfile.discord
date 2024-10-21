@@ -1,0 +1,11 @@
+FROM node:20
+
+WORKDIR /usr/src/bot
+
+COPY package*.json ./
+
+RUN npm install --omit=dev
+
+COPY . .
+
+CMD ["node", "scripts/discord-auth-server.js"]
