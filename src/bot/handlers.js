@@ -50,6 +50,8 @@ function attachHandlers(bot) {
     '/events_history',
   ] //commands on telegram
 
+  bot.on('polling_error', (error) => logger.error(`Pooling error: ${error}`))
+
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id // Get chat ID (this will be your channel ID)
 
@@ -263,8 +265,9 @@ function attachHandlers(bot) {
       { reply_markup: callbackButtonForValidatorCommand() },
     )
 
-    logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
+    logger.info(`User ${msg.from.username} (${msg.from.id}) called /validator_menu command`)
   })
+
   bot.onText(new RegExp('/discord_announcements'), (msg) => {
     const chatId = msg.chat.id
 
@@ -274,13 +277,10 @@ function attachHandlers(bot) {
       {
         reply_markup: callbackFroDiscordAnnouncementsCommand(),
         parse_mode: 'Markdown',
-        disable_web_page_preview: true,
       },
     )
 
-    logger.info(
-      `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called discord_announcements (General Discord Announcements)`,
-    )
+    logger.info(`User ${msg.from.username} (${msg.from.id}) called /discord_announcements (General Discord Announcements)`)
   })
 
   bot.onText(new RegExp('/menu'), (msg) => {
@@ -589,7 +589,8 @@ function attachHandlers(bot) {
         break
 
       case 'main_menu':
-        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (back to Main Menu)`)
+        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Back to Main Menu)`)
+
         bot
           .editMessageText('Manage your Sui activities with ease! Choose an option below to get started.', {
             chat_id: chatId,
@@ -598,9 +599,6 @@ function attachHandlers(bot) {
           })
           .then(() => {
             bot.answerCallbackQuery(callbackQuery.id)
-          })
-          .catch((error) => {
-            logger.error('main_menu Error:', error)
           })
 
         break
