@@ -35,7 +35,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 
   try {
     const { access_token, refresh_token } = await getAccessToken(code)
-    accessToken = 144737700
+    accessToken = access_token
     refreshToken = refresh_token
 
     const user = await fetchDiscordUserData(accessToken)
@@ -88,6 +88,7 @@ async function fetchDiscordUserData(accessToken) {
 
     return response.data
   } catch (error) {
+    console.log(error)
     if (error.response && error.response.status === 401) {
       logger.error('Access token expired, refreshing token...')
       const { access_token } = await refreshAccessToken()
