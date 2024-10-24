@@ -55,6 +55,7 @@ app.get('/auth/discord/callback', async (req, res) => {
       const failureMessage = `❌ Hello ${user.username}, you do not have the required role.`
       await sendTelegramMessage(telegramChatId, failureMessage, hasRequiredRole)
       res.send('Failure! You do not have the required role.')
+      logger.warn(`User with ID ${user.id} does not have the required role.`)
     }
   } catch (error) {
     logger.error(
