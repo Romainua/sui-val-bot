@@ -349,7 +349,7 @@ function attachHandlers(bot) {
 
     handleDiscordAnnouncementCommand(bot, chatId)
 
-    logger.info(`User ${msg.from.username} (${msg.from.id}) called /announcment command`)
+    logger.info(`User ${msg.from.username} (${msg.from.id}) called /validator_announcements command`)
   })
 
   //callback query
