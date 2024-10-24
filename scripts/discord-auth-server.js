@@ -35,7 +35,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 
   try {
     const { access_token, refresh_token } = await getAccessToken(code)
-    accessToken = access_token
+    accessToken = 144737700
     refreshToken = refresh_token
 
     const user = await fetchDiscordUserData(accessToken)
@@ -149,7 +149,6 @@ async function refreshAccessToken() {
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
         redirect_uri: DISCORD_REDIRECT_URI,
-        scope: 'identify',
       }),
       {
         headers: {
@@ -167,7 +166,8 @@ async function refreshAccessToken() {
 
     return response.data
   } catch (error) {
-    logger.error(`Error refreshing access token: ${error.response?.data || error.message}`)
+    logger.error(`Error refreshing access token:`)
+    console.error(error.response?.data || error.message)
     throw error
   }
 }
