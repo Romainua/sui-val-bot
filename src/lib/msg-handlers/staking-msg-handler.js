@@ -41,20 +41,6 @@ export default async function messageHandler(bot, chatId, subscription, data) {
 
     tx = txDigest
     tokensAmount = Number(amount)
-  } else if (parsedData.result) {
-    logger.info(
-      `${valName} type: ${subscription.type} successful subscribtion for chat (${chatId}), result id: ${parsedData.result}`,
-    )
-
-    subscription.subscribeId = parsedData.result //add subscription id to suscription object for future request to unsubscribe
-
-    return
-  } else if (parsedData.error) {
-    logger.error(`Error on ${valName} type: ${subscription.type} subscription for chat (${chatId}), error: ${parsedData.error}`)
-  } else {
-    logger.warn(`${valName} type: ${subscription.type} inappropriate response from ws connection:`)
-    logger.warn(JSON.stringify(parsedData))
-    return
   }
 
   //format amount

@@ -208,13 +208,11 @@ function attachHandlers(bot) {
         if (wsValData.type === 'epoch_reward') {
           const type = wsValData.type
           const validatoraddress = validatorInfo.suiAddress
-          const sizeOfTokens = 'All'
+          const sizeOfTokens = 0 //means all size of tokens
 
           handleInitSubscription(chatId, validatoraddress, validatorName, type, sizeOfTokens)
             .then(() => {
               waitingForSizeOfTokensForWs.set(chatId, false)
-
-              bot.deleteMessage(chatId, wsValData.msgId)
 
               bot.sendMessage(chatId, `Event for ${validatorName} has been added ✅`, {
                 reply_markup: subscribeKeyBoard(),
@@ -490,7 +488,9 @@ function attachHandlers(bot) {
         break
 
       case 'epoch_reward':
-        logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Event)`)
+        logger.info(
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Epoch Rewards Event)`,
+        )
 
         bot
           .sendMessage(chatId, 'The bot will notify you about earned rewards for past epoch.\n\nInput validator name:', {
@@ -500,7 +500,6 @@ function attachHandlers(bot) {
             waitingForValidatorNameForWsConnection.set(chatId, {
               status: true,
               type: 'epoch_reward',
-              msgId: msg.message_id,
             })
             bot.answerCallbackQuery(callbackQuery.id)
           })

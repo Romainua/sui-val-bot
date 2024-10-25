@@ -41,13 +41,15 @@ export default async function handleWsSubscruptions(bot, usersSubscriptions) {
     } else if (parsedData.method === 'suix_subscribeEvent') {
       const parsedJson = parsedData.params.result.parsedJson
       const result = parsedData.params.result
-      const eventType = result.type === '0x3::validator::StakingRequestEvent' ? 'delegate' : 'undelegate'
       const validatorAddress = parsedJson.validator_address
+      const eventType = result.type === '0x3::validator::StakingRequestEvent' ? 'delegate' : 'undelegate'
 
       for (const [key, subscriptions] of usersSubscriptions) {
         const chatId = key
 
-        const matchedSubscription = subscriptions.find((sub) => sub.address === validatorAddress && sub.type === eventType) // Find the matching subscription on user subscriptions
+        const matchedSubscription = subscriptions.find(
+          (sub) => sub.address === validatorAddress && (sub.type === eventType || sub.type === 'epoch_reward'),
+        ) // Find the matching subscription on user subscriptions
 
         if (matchedSubscription) {
           messageHandler(bot, chatId, matchedSubscription, data) // If a match is found, handle the message accordingly

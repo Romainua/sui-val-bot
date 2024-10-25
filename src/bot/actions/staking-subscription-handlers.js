@@ -22,7 +22,13 @@ async function handleInitRestorSubscriptions(bot) {
             const valName = subscription.name
             const type = subscription.type
             const sizeOfTokens = subscription.tokenSize || 'All'
-            const isEpochReward = type === 'delegate' ? subscription.isEpochReward : false
+
+            const isEpochReward =
+              type === 'epoch_reward'
+                ? true
+                : type === 'delegate' && subscription.isEpochReward !== undefined
+                ? subscription.isEpochReward
+                : false
 
             const amountOfTokens =
               sizeOfTokens === 100
@@ -92,19 +98,19 @@ async function handleSaveSubscriptionToCache(chatId, valAddress, valName, type, 
     usersSubscriptions.set(chatId, []) //if current chat id doesn't exist init empty array for objects with subscribe data
   }
 
-  const eventType = type === 'delegate' ? 'Stake' : type === 'undelegate' ? 'Unstake' : 'Reward'
+  const textEventType = type === 'delegate' ? 'Stake' : type === 'undelegate' ? 'Unstake' : 'Reward'
 
   const stringedAmount = getAmountOfTokens(sizeOfTokens)
 
   const subscribeData = {
     name: valName,
     type: type,
-    text: `👤 ${valName} | 💵 ${stringedAmount} | ${eventType}`,
+    text: `👤 ${valName} | 💵 ${stringedAmount} | ${textEventType}`,
     address: valAddress,
     tokenSize: sizeOfTokens,
-    subscribeId: null,
     isEpochReward: isEpochReward,
   }
+
   const addedSubscription = usersSubscriptions.get(chatId)
   usersSubscriptions.set(chatId, [...addedSubscription, subscribeData]) //add subscription data to user array
 }
