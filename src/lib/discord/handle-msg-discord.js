@@ -14,6 +14,7 @@ export default async function sendTelegramMessageForDiscord(bot, chatId, message
       reply_markup: {
         inline_keyboard: [[{ text: 'View on Discord 🔗', url: messageLink }]],
       },
+      parse_mode: 'Markdown',
       disable_web_page_preview: true,
     })
   } catch (error) {

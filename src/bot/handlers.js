@@ -131,7 +131,6 @@ function attachHandlers(bot) {
         bot.sendMessage(chatId, 'Please enter `Yes` or `No`', {
           parse_mode: 'Markdown',
           reply_markup: {
-            remove_keyboard: true,
             inline_keyboard: backReply(),
           },
         })
@@ -489,14 +488,14 @@ function attachHandlers(bot) {
 
       case 'epoch_reward':
         logger.info(
-          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Epoch Rewards Event)`,
+          `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used epoch_reward (Subscribe to Epoch Rewards Event)`,
         )
 
         bot
-          .sendMessage(chatId, 'The bot will notify you about earned rewards for past epoch.\n\nInput validator name:', {
+          .sendMessage(chatId, 'The bot will send updates on earned rewards each time an epoch changes:', {
             reply_markup: { inline_keyboard: backReply() },
           })
-          .then((msg) => {
+          .then(() => {
             waitingForValidatorNameForWsConnection.set(chatId, {
               status: true,
               type: 'epoch_reward',
