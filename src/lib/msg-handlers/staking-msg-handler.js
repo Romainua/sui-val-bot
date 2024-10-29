@@ -50,14 +50,19 @@ export default async function messageHandler(bot, chatId, subscription, data) {
   const epochChangeSender = `0x0000000000000000000000000000000000000000000000000000000000000000`
 
   //if sender is epoch changing
-  if (parsedData?.params?.result?.sender === epochChangeSender && isEpochReward) {
+  if (
+    parsedData?.params?.result?.sender === epochChangeSender &&
+    (subscription.type === 'epoch_reward' || subscription.isEpochReward)
+  ) {
     const message = `\n🔄 The epoch has changed.\n\n📈 Validator Rewards:\n- Validator: ${valName}\n- Epoch Number: ${epoch}\n- Reward Amount: ${formattedPrincipal} SUI\n\nKeep up the great work! 🚀`
 
     messageSender(bot, chatId, message, subscription)
-  } else if (reducedAmount >= sizeOfTokens) {
-    const meesage = ` ${
-      type === '0x3::validator::StakingRequestEvent' ? '🟢 Staked' : '🔴 Unstaked' //depend on type of event stake/unstake StakingRequestEvent/WithdrawRequestEvent
-    }\nValidator: ${valName}\nAmount: ${formattedPrincipal} SUI\n[Tx Link - Click here](https://explorer.sui.io/txblock/${tx})`
+  } else if (reducedAmount >= sizeOfTokens && subscription.type === 'delegate') {
+    const meesage = `🟢 Staked\nValidator: ${valName}\nAmount: ${formattedPrincipal} SUI\n[Tx Link - Click here](https://explorer.sui.io/txblock/${tx})`
+
+    messageSender(bot, chatId, meesage, subscription)
+  } else if (reducedAmount >= sizeOfTokens && subscription.type === 'undelegate') {
+    const meesage = `🔴 Unstaked\nValidator: ${valName}\nAmount: ${formattedPrincipal} SUI\n[Tx Link - Click here](https://explorer.sui.io/txblock/${tx})`
 
     messageSender(bot, chatId, meesage, subscription)
   }

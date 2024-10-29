@@ -42,17 +42,22 @@ export default async function handleWsSubscruptions(bot, usersSubscriptions) {
       const parsedJson = parsedData.params.result.parsedJson
       const result = parsedData.params.result
       const validatorAddress = parsedJson.validator_address
-      const eventType = result.type === '0x3::validator::StakingRequestEvent' ? 'delegate' : 'undelegate'
+      const eventType =
+        result.sender === '0x0000000000000000000000000000000000000000000000000000000000000000'
+          ? 'epoch_reward'
+          : result.type === '0x3::validator::StakingRequestEvent'
+          ? 'delegate'
+          : 'undelegate'
 
       for (const [key, subscriptions] of usersSubscriptions) {
         const chatId = key
 
-        const matchedSubscription = subscriptions.find(
-          (sub) => sub.address === validatorAddress && (sub.type === eventType || sub.type === 'epoch_reward'),
-        ) // Find the matching subscription on user subscriptions
+        const matchedSubscription = subscriptions.filter((sub) => sub.address === validatorAddress && sub.type === eventType) // Find the matching subscription on user subscriptions
 
-        if (matchedSubscription) {
-          messageHandler(bot, chatId, matchedSubscription, data) // If a match is found, handle the message accordingly
+        if (matchedSubscription.length > 0) {
+          matchedSubscription.forEach((sub) => {
+            messageHandler(bot, chatId, sub, data) // If a match is found, handle the message accordingly
+          })
         }
       }
     } else if (typeof parsedData.result === 'number') {
