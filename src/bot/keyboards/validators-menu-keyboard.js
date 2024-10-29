@@ -36,7 +36,7 @@ function keyboardForNotActiveSubscriptions() {
         { text: 'Unstake 🔴', callback_data: 'undelegation' },
       ],
       [{ text: 'Epoch Reward 🏅', callback_data: 'epoch_reward' }],
-      [{ text: '⬅ Back', callback_data: 'main_menu' }],
+      [{ text: '⬅ Back', callback_data: 'validators_menu' }],
     ],
   }
 }
