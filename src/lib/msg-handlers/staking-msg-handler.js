@@ -10,6 +10,7 @@ export default async function messageHandler(bot, chatId, subscription, data) {
 
   const type = parsedData?.params?.result?.type
   const epoch = parsedData?.params?.result?.parsedJson?.epoch || parsedData?.params?.result?.parsedJson?.unstaking_epoch
+  const sender = parsedData?.params?.result?.sender
 
   let tx //tx digest
   let tokensAmount //amount for unstake or stake
@@ -50,10 +51,7 @@ export default async function messageHandler(bot, chatId, subscription, data) {
   const epochChangeSender = `0x0000000000000000000000000000000000000000000000000000000000000000`
 
   //if sender is epoch changing
-  if (
-    parsedData?.params?.result?.sender === epochChangeSender &&
-    (subscription.type === 'epoch_reward' || subscription.isEpochReward)
-  ) {
+  if (subscription.type === 'epoch_reward' || (isEpochReward && epochChangeSender === sender)) {
     const message = `\n🔄 The epoch has changed.\n\n📈 Validator Rewards:\n- Validator: ${valName}\n- Epoch Number: ${epoch}\n- Reward Amount: ${formattedPrincipal} SUI\n\nKeep up the great work! 🚀`
 
     messageSender(bot, chatId, message, subscription)
