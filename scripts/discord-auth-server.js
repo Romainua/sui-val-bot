@@ -42,8 +42,7 @@ app.get('/auth/discord/callback', async (req, res) => {
     refreshToken = refresh_token
 
     const user = await fetchDiscordUserData(accessToken)
-
-    const hasRequiredRole = await checkUserRole(user.id, telegramChatId)
+    const hasRequiredRole = await checkUserRole(user.id, user.username, telegramChatId)
 
     if (hasRequiredRole) {
       await handleUpdateVerification(telegramChatId, hasRequiredRole)
@@ -121,7 +120,7 @@ async function getAccessToken(code) {
       },
     )
 
-    logger.info(`Access Token Response: ${response.data}`)
+    logger.info(`Access Token Response: ${JSON.stringify(response.data)}`)
     return response.data
   } catch (error) {
     logger.error('Failed to get access token:', error.response?.data || error.message)
@@ -130,7 +129,7 @@ async function getAccessToken(code) {
 }
 
 // Function to check if the user has the required role
-async function checkUserRole(userId, telegramChatId) {
+async function checkUserRole(userId) {
   try {
     const response = await axios.get(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`, {
       headers: {
@@ -142,16 +141,11 @@ async function checkUserRole(userId, telegramChatId) {
     return member.roles.includes(REQUIRED_ROLE_ID)
   } catch (error) {
     if (error.response?.data?.code === 10007) {
-      // User is not a member of the guild
-      const failureMessage = `❌ Hello ${user.username}, you are not a member of the guild.`
-      await sendTelegramMessage(telegramChatId, failureMessage, false)
       logger.warn(`User with ID ${userId} is not a member of the guild.`)
-      return false // Or handle as needed
     } else {
-      // Other errors
       logger.error(`Error checking user roles: ${error.message}`)
-      throw error
     }
+    return false
   }
 }
 
