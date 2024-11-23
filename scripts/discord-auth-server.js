@@ -3,11 +3,14 @@ import axios from 'axios'
 import dotenv from 'dotenv'
 import ClientDb from '../src/db-interaction/db-hendlers.js'
 import logger from '../src/utils/handle-logs/logger.js'
+import cors from 'cors'
 import { callbackButtonForDiscordNotVerify } from '../src/bot/keyboards/validators-menu-keyboard.js'
 
 dotenv.config()
 
 const app = express()
+
+app.use(cors())
 
 const port = process.env.PORT_DISCORD_AUTH_SERVER || 3000
 
@@ -89,6 +92,11 @@ async function fetchDiscordUserData(accessToken) {
 
     return response.data
   } catch (error) {
+    if (error.response?.status === 401) {
+      logger.warn('Access token expired. Refreshing token...')
+      const { access_token } = await refreshAccessToken()
+      return fetchDiscordUserData(access_token) // Retry with new token
+    }
     throw new Error(`Error fetching user data: ${error.message}`)
   }
 }
@@ -112,8 +120,10 @@ async function getAccessToken(code) {
       },
     )
 
+    logger.info('Access Token Response:', response.data)
     return response.data
   } catch (error) {
+    logger.error('Failed to get access token:', error.response?.data || error.message)
     throw new Error(`Failed to get access token: ${error.message}`)
   }
 }
