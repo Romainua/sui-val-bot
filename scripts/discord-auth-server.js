@@ -43,7 +43,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 
     const user = await fetchDiscordUserData(accessToken)
 
-    const hasRequiredRole = await checkUserRole(user.id)
+    const hasRequiredRole = await checkUserRole(user.id, telegramChatId)
 
     if (hasRequiredRole) {
       await handleUpdateVerification(telegramChatId, hasRequiredRole)
@@ -129,7 +129,7 @@ async function getAccessToken(code) {
 }
 
 // Function to check if the user has the required role
-async function checkUserRole(userId) {
+async function checkUserRole(userId, telegramChatId) {
   try {
     const response = await axios.get(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`, {
       headers: {
@@ -140,8 +140,17 @@ async function checkUserRole(userId) {
     const member = response.data
     return member.roles.includes(REQUIRED_ROLE_ID)
   } catch (error) {
-    logger.error(`Error checking user roles: ${error.message}`)
-    throw error
+    if (error.response?.data?.code === 10007) {
+      // User is not a member of the guild
+      const failureMessage = `❌ Hello ${user.username}, you are not a member of the guild.`
+      await sendTelegramMessage(telegramChatId, failureMessage, false)
+      logger.warn(`User with ID ${userId} is not a member of the guild.`)
+      return false // Or handle as needed
+    } else {
+      // Other errors
+      logger.error(`Error checking user roles: ${error.message}`)
+      throw error
+    }
   }
 }
 
@@ -153,7 +162,7 @@ async function refreshAccessToken() {
         client_id: CLIENT_ID,
         client_secret: CLIENT_SECRET,
         grant_type: 'refresh_token',
-        refresh_token: refreshToken,
+        refresh_token: refreshToken, // Use the current refresh token
         redirect_uri: DISCORD_REDIRECT_URI,
       }),
       {
@@ -165,6 +174,7 @@ async function refreshAccessToken() {
 
     const { access_token, refresh_token } = response.data
 
+    // Update the tokens with the new values
     accessToken = access_token
     refreshToken = refresh_token
 
@@ -172,8 +182,7 @@ async function refreshAccessToken() {
 
     return response.data
   } catch (error) {
-    logger.error(`Error refreshing access token:`)
-    console.error(error.response?.data || error.message)
+    logger.error('Error refreshing access token:', error.response?.data || error.message)
     throw error
   }
 }
