@@ -92,6 +92,7 @@ async function fetchDiscordUserData(accessToken) {
 
     return response.data
   } catch (error) {
+    logger.error(error)
     if (error.response?.status === 401) {
       logger.warn('Access token expired. Refreshing token...')
       const { access_token } = await refreshAccessToken()
@@ -120,7 +121,7 @@ async function getAccessToken(code) {
       },
     )
 
-    logger.info('Access Token Response:', response.data)
+    logger.info(`Access Token Response: ${response.data}`)
     return response.data
   } catch (error) {
     logger.error('Failed to get access token:', error.response?.data || error.message)
