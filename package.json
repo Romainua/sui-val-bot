@@ -8,7 +8,8 @@
     "discord-auth": "node scripts/discord-auth-server.js",
     "dev": "nodemon src/index.js",
     "discord-auth:dev": "nodemon scripts/discord-auth-server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "announcement": "node scripts/announcements.js"
   },
   "keywords": [
     "Bot",
