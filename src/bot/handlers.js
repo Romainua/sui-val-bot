@@ -492,7 +492,7 @@ function attachHandlers(bot) {
         )
 
         bot
-          .sendMessage(chatId, 'The bot will send updates on earned rewards each time an epoch changes:', {
+          .sendMessage(chatId, 'The bot will send updates on earned rewards each time an epoch changes\nInput validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
           .then(() => {
