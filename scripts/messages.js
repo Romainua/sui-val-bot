@@ -1,26 +1,21 @@
 export const UpdateAnnouncmentMessage = `
-🚀 Exciting Updates for Validators and Users! 🎉
+📢 Exciting Announcement for Validators!
 
-Hello everyone! We’re thrilled to announce some awesome new features and improvements to the bot. Let’s dive into the details:
+We’re thrilled to introduce a brand-new feature on Valstat! 🎉
 
-🌟 For Validators:
+You can now access a comprehensive staking overview for your validator with ease—just send your address. Here’s what you can explore:
 
-- *Epoch Rewards Notifications:* Stay informed about your rewards! Just send /stakenotify to subscribe and get updates on epoch-earned rewards.
-- *Validator Announcements:* Never miss an important update! Subscribe to Discord validator announcements by sending /validator\\_announcements and passing verification (only available for validators).
-- *Validator Event History:* Check out the new mini-app for tracking validator events. Use /validator\\_menu to explore it now.
+    ✅ View your current stakes
+    ✅ Check your reward history
+    ✅ Track your all-time earnings
+    ✅ Monitor your all-time staked amount
+    ✅ Explore interactive charts and more
 
-🌟 For Channel Owners:
+✨ Check out a live example with the Mysten-1 validator:
+👉 [Mysten-1 Validator Overview](https://valstat.xyz/profile/0x4fffd0005522be4bc029724c7f0f6ed7093a6bf3a09b90e62f61dc15181e1a3e)
 
-- *Forward Discord Announcements:* Add the bot to your Telegram channel and forward Discord announcements directly to your audience. Use /discord\\_announcements to select the Discord channel you’d like to forward updates from.
+Start exploring your staking journey now! 🚀 Let us know if you have any feedback or requests for further refinements.
 
-🌟 For All Users:
-
-- *Staking Overview:* Check out your staking stats with ease! Visit your [staking profile](https://valstat.xyz/profile) and enter your address to get started.
-
-⚙️ Minor Improvements:
-We’ve also made some small updates and improvements to enhance your experience!
-
----
-
-Try out these new features and let us know what you think. Thank you for using our bot, and stay tuned—there’s more to come! 💙
+Happy staking,
+The Valstat Team
 `
