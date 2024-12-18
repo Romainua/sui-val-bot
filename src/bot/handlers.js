@@ -11,13 +11,13 @@ import logger from '../utils/handle-logs/logger.js'
 import {
   subscribeKeyBoard,
   backReply,
-  callbackButtonForStartCommand,
   backReplyForValidatorMenu,
   callbackButtonSizeOfTokens,
   callbackButtonForIncludeEpochReward,
   callbackButtonWebsite,
   callbackButtonForValidatorCommand,
 } from './keyboards/validators-menu-keyboard.js'
+import { callbackButtonForStartCommand } from './keyboards/general-menu-keyboard.js'
 import { callbackFroDiscordAnnouncementsCommand } from './keyboards/discord-ann-keyboard.js'
 import initEventsSubscribe from '../utils/initEventsSubscribe.js'
 import { updateAnnouncementSubscription, handleDiscordAnnouncementCommand } from './actions/discord-annc-handler.js'
@@ -84,17 +84,21 @@ function attachHandlers(bot) {
 
       LIST_OF_COMMANDS.includes(msg.text)
         ? waitingValidatorNameForRewards.set(chatId, false) //close wating if were push one of tg commands
-        : showCurrentState(valName)
+        : await showCurrentState(valName)
             .then(async (resp) => {
               const validatorAddress = resp.suiAddress
 
               const { totalAmount } = await handleStakedSuiObjectsByName(validatorAddress)
 
-              bot.sendMessage(chatId, `Validator: ${resp.name}\nTotal staked tokens: ${totalAmount} SUI`, {
-                reply_markup: {
-                  inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]], //save val name to callback data will resotor it
-                },
-              })
+              bot
+                .sendMessage(chatId, `Validator: ${resp.name}\nTotal staked tokens: ${totalAmount} SUI`, {
+                  reply_markup: {
+                    inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]], //save val name to callback data will resotor it
+                  },
+                })
+                .then(() => {
+                  waitingValidatorNameForRewards.set(chatId, false)
+                })
 
               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
             })
