@@ -90,11 +90,15 @@ function attachHandlers(bot) {
 
               const { totalAmount } = await handleStakedSuiObjectsByName(validatorAddress)
 
-              bot.sendMessage(chatId, `Validator: ${resp.name}\nTotal staked tokens: ${totalAmount} SUI`, {
-                reply_markup: {
-                  inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]], //save val name to callback data will resotor it
-                },
-              })
+              bot
+                .sendMessage(chatId, `Validator: ${resp.name}\nTotal staked tokens: ${totalAmount} SUI`, {
+                  reply_markup: {
+                    inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]], //save val name to callback data will resotor it
+                  },
+                })
+                .then(() => {
+                  waitingValidatorNameForRewards.set(chatId, false)
+                })
 
               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
             })
