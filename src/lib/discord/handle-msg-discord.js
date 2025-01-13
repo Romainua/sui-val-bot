@@ -28,15 +28,14 @@ export default async function sendTelegramMessageForDiscord(bot, chatId, message
       if (errorMessage === 'Bad Request: chat not found') {
         logger.error('Error: chat not found.')
       }
-    } else {
-      await bot.sendMessage(chatId, `New Announcement in ${channelName}`, {
-        reply_markup: {
-          inline_keyboard: [[{ text: 'View on Discord 🔗', url: messageLink }]],
-        },
-        disable_web_page_preview: true,
-      })
-      logger.error('An unexpected error occurred or description is missing.')
     }
+
+    await bot.sendMessage(chatId, `New Announcement in ${channelName}`, {
+      reply_markup: {
+        inline_keyboard: [[{ text: 'View on Discord 🔗', url: messageLink }]],
+      },
+      disable_web_page_preview: true,
+    })
     logger.error(`Error resending message from Discord: ${JSON.stringify(error, null, 2)}`)
   }
 }
