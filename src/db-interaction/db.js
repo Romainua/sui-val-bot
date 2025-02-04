@@ -11,9 +11,7 @@ const client = new Client({
   host: process.env.PGHOST,
   database: process.env.PGDATABASE,
   password: process.env.PGPASSWORD,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: false,
 })
 
 // Connect to the database when the app starts
