@@ -14,8 +14,8 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
 
     if (!isVerifiedValidator[0].is_validator_verified) {
       const message = `
-      📢 **Subscribe to Discord Announcements** 📢\n
-      Stay updated with the latest news and announcements from the Discord server!\n
+      📢 **Subscribe to Walrus Operator Discord Announcements** 📢\n
+      Stay updated with the latest news and announcements from the Walrus Discord server!\n
       To subscribe, you need to authenticate so we can verify your roles and ensure you have the necessary permissions. During authentication, we will request the following permission:\n
       - **\`guilds.members.read\`**: This permission allows us to check your membership and roles in the server to determine if you have access to the announcements.\n
     `
