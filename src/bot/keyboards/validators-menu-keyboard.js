@@ -119,8 +119,11 @@ function callbackButtonForDiscordNotVerify(chatId) {
   const BASE_AUTH_URL = process.env.BASE_AUTH_URL
   const GUILD_ID = process.env.GUILD_ID
   const REQUIRED_ROLE_ID = process.env.REQUIRED_ROLE_ID
-  const OAuth2_URL = `${BASE_AUTH_URL}&state=${chatId}&guild=${GUILD_ID}&role=${REQUIRED_ROLE_ID}`
 
+  const stateData = `${chatId}:${GUILD_ID}:${REQUIRED_ROLE_ID}`
+  const encodedState = encodeURIComponent(stateData)
+
+  const OAuth2_URL = `${BASE_AUTH_URL}&state=${encodedState}`
   return {
     inline_keyboard: [[{ text: 'Verify Discord Role', url: OAuth2_URL }], [{ text: '⬅ Back', callback_data: 'validators_menu' }]],
   }

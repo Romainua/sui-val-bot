@@ -22,20 +22,23 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
 
 let GUILD_ID = ''
 let REQUIRED_ROLE_ID = ''
-
+let TELEGRAM_CHAT_ID = ''
 const DISCORD_API_USERS_URL = 'https://discord.com/api/v10/users/@me'
 const DISCORD_API_OAUTH2_URL = 'https://discord.com/api/v10/oauth2/token'
 
 app.get('/auth/discord/callback', async (req, res) => {
   const { code, state, guild, role } = req.query
+  console.log(req.query)
+  console.log(code, state, guild, role)
 
   if (!code) return res.status(400).send('Missing code parameter')
   if (!state) return res.status(400).send('Missing state parameter')
-  if (!guild) return res.status(400).send('Missing guild parameter')
-  if (!role) return res.status(400).send('Missing role parameter')
-  const telegramChatId = state
-  GUILD_ID = guild
-  REQUIRED_ROLE_ID = role
+
+  const decodedState = decodeURIComponent(state)
+  const stateParts = decodedState.split(':')
+
+  ;[TELEGRAM_CHAT_ID, GUILD_ID, REQUIRED_ROLE_ID] = stateParts
+
   let access_token
   let refresh_token
   let expires_in
@@ -70,7 +73,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 
     if (hasRequiredRole) {
       // Step 4: Update verification status and send success message
-      await handleUpdateVerification(telegramChatId, true)
+      await handleUpdateVerification(TELEGRAM_CHAT_ID, true)
 
       const successMessage = `
         ✅ **You are a verified member ${user.username}!** 🎉
@@ -78,7 +81,7 @@ app.get('/auth/discord/callback', async (req, res) => {
         Welcome, validator! Your role has been verified, you now have access to exclusive announcements and updates.
       `
 
-      await sendTelegramMessage(telegramChatId, successMessage, true)
+      await sendTelegramMessage(TELEGRAM_CHAT_ID, successMessage, true)
 
       // Step 5: Set cookies securely and redirect
       res
@@ -97,7 +100,7 @@ app.get('/auth/discord/callback', async (req, res) => {
       // Handle failure: User lacks the required role
       const failureMessage = `❌ Hello ${user.username}, you do not have the required role.`
 
-      await sendTelegramMessage(telegramChatId, failureMessage, false)
+      await sendTelegramMessage(TELEGRAM_CHAT_ID, failureMessage, false)
       logger.warn(`User with ID ${user.id} does not have the required role.`)
 
       return res.status(403).send('Failure! You do not have the required role.')
