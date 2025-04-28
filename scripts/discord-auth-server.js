@@ -17,22 +17,25 @@ const port = process.env.PORT_DISCORD_AUTH_SERVER || 3000
 const CLIENT_ID = process.env.CLIENT_ID
 const CLIENT_SECRET = process.env.CLIENT_SECRET
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI
-const GUILD_ID = process.env.GUILD_ID
-const REQUIRED_ROLE_ID = process.env.REQUIRED_ROLE_ID
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
+
+let GUILD_ID = ''
+let REQUIRED_ROLE_ID = ''
 
 const DISCORD_API_USERS_URL = 'https://discord.com/api/v10/users/@me'
 const DISCORD_API_OAUTH2_URL = 'https://discord.com/api/v10/oauth2/token'
 
 app.get('/auth/discord/callback', async (req, res) => {
-  const { code, state } = req.query
+  const { code, state, guild, role } = req.query
 
   if (!code) return res.status(400).send('Missing code parameter')
   if (!state) return res.status(400).send('Missing state parameter')
-
+  if (!guild) return res.status(400).send('Missing guild parameter')
+  if (!role) return res.status(400).send('Missing role parameter')
   const telegramChatId = state
-
+  GUILD_ID = guild
+  REQUIRED_ROLE_ID = role
   let access_token
   let refresh_token
   let expires_in
