@@ -67,15 +67,12 @@ class SignerHelper {
     const tx = new TransactionBlock()
 
     try {
-      do {
-        for (const objectId of arrayOfStakedPoolId.slice(0, 2)) {
-          tx.moveCall({
-            target: `${packageObjectId}::sui_system::request_withdraw_stake`,
-            arguments: [tx.object('0x5'), tx.object(`${objectId}`)],
-          })
-          await arrayOfStakedPoolId.splice(0, 2)
-        }
-      } while (arrayOfStakedPoolId.length > 0)
+      for (const objectId of arrayOfStakedPoolId) {
+        tx.moveCall({
+          target: `${packageObjectId}::sui_system::request_withdraw_stake`,
+          arguments: [tx.object('0x5'), tx.object(`${objectId}`)],
+        })
+      }
 
       const result = await this.client.signAndExecuteTransactionBlock({
         signer: this.signer,
@@ -84,6 +81,7 @@ class SignerHelper {
 
       return result
     } catch (err) {
+      console.log(err)
       return err
     }
   }
@@ -134,19 +132,35 @@ class SignerHelper {
 
   async getOperationCapId() {
     const address = await this.getAddress()
-
-    const objects = await this.client.getOwnedObjects({
-      owner: address,
-      options: {
-        showType: true,
-      },
-    })
-
     const targetType = '0x3::validator_cap::UnverifiedValidatorOperationCap'
+    let cursor = null
+    let hasNextPage = true
 
-    const foundObject = objects.data.find((item) => item.data.type === targetType)
+    while (hasNextPage) {
+      const params = {
+        owner: address,
+        options: {
+          showType: true,
+        },
+      }
 
-    return foundObject.data.objectId
+      if (cursor) {
+        params.cursor = cursor
+      }
+
+      const response = await this.client.getOwnedObjects(params)
+
+      const foundObject = response.data.find((item) => item.data && item.data.type === targetType)
+
+      if (foundObject) {
+        return foundObject.data.objectId
+      }
+
+      if (response.hasNextPage) {
+        cursor = response.nextCursor
+        hasNextPage = response.hasNextPage
+      }
+    }
   }
 
   async getAddress() {

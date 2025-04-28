@@ -72,6 +72,7 @@ async function handleSetKey(bot, chatId, key) {
 
     return { signer, address, signerHelper, objectOperationCap }
   } catch (error) {
+    console.log(error)
     if (error.message.includes(`Cannot read properties of undefined (reading 'data')`)) {
       bot.sendMessage(chatId, `Can't find Object Operation Cap for this key.`)
     } else {
@@ -172,9 +173,12 @@ async function handleWithdrawAllRewards(signerHelper) {
     for (const obj of filteredObjects) {
       const stakedPoolId = obj.objectId
 
+      if (arrayOfObjects.length >= 50) {
+        break
+      }
       arrayOfObjects.push(stakedPoolId)
     }
-
+    console.log(arrayOfObjects)
     const resp = await signerHelper.withdrawRewardsFromPoolId(arrayOfObjects)
 
     return resp.digest
