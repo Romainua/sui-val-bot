@@ -12,7 +12,7 @@ const app = express()
 
 app.use(cors())
 
-const port = process.env.PORT_DISCORD_AUTH_SERVER || 3000
+const port = process.env.PORT_DISCORD_AUTH_SERVER
 
 const CLIENT_ID = process.env.CLIENT_ID
 const CLIENT_SECRET = process.env.CLIENT_SECRET
@@ -23,13 +23,12 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
 let GUILD_ID = ''
 let REQUIRED_ROLE_ID = ''
 let TELEGRAM_CHAT_ID = ''
+
 const DISCORD_API_USERS_URL = 'https://discord.com/api/v10/users/@me'
 const DISCORD_API_OAUTH2_URL = 'https://discord.com/api/v10/oauth2/token'
 
 app.get('/auth/discord/callback', async (req, res) => {
-  const { code, state, guild, role } = req.query
-  console.log(req.query)
-  console.log(code, state, guild, role)
+  const { code, state } = req.query
 
   if (!code) return res.status(400).send('Missing code parameter')
   if (!state) return res.status(400).send('Missing state parameter')
