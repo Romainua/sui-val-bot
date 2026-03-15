@@ -8,6 +8,7 @@ import {
 
 import { showCurrentState } from '../api-interaction/system-state.js'
 import logger from '../utils/handle-logs/logger.js'
+import { safeSendMessage, safeEditMessage } from '../utils/safe-send.js'
 import {
   subscribeKeyBoard,
   backReply,
@@ -50,7 +51,7 @@ function attachHandlers(bot) {
     '/events_history',
   ] //commands on telegram
 
-  bot.on('polling_error', (error) => logger.error(`Pooling error: ${error}`))
+  bot.on('polling_error', (error) => logger.error(`Polling error: ${error}`))
 
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id // Get chat ID (this will be your channel ID)
@@ -62,14 +63,14 @@ function attachHandlers(bot) {
       LIST_OF_COMMANDS.includes(msg.text) //close wating if were push one of tg commands
         ? waitingForValidatorName.set(chatId, false)
         : handleValidatorInfo(bot, chatId, validatorName)
-            .then(() => {
-              validatorNames.set(chatId, validatorName) //set name to map for get data by name when call callback button
-              bot.sendMessage(chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForValidatorCommand() })
+            .then(async () => {
+              validatorNames.set(chatId, validatorName)
+              await safeSendMessage(bot, chatId, 'Menu. Choose a button.', { reply_markup: callbackButtonForValidatorCommand() })
 
               logger.info(`User ${msg.from.username} (${msg.from.id}) called show validator data by ${validatorName}`)
             })
-            .catch(() => {
-              bot.sendMessage(chatId, `❗ Can't find validator`, {
+            .catch(async () => {
+              await safeSendMessage(bot, chatId, `❗ Can't find validator`, {
                 reply_markup: backReplyForValidatorMenu(),
               })
               logger.info(`User ${msg.from.username} (${msg.from.id}). Can't find validator ${validatorName}`)
@@ -90,22 +91,20 @@ function attachHandlers(bot) {
 
               const { totalAmount } = await handleStakedSuiObjectsByName(validatorAddress)
 
-              bot
-                .sendMessage(chatId, `Validator: ${resp.name}\nTotal staked tokens: ${totalAmount} SUI`, {
+              const result = await safeSendMessage(bot, chatId, `Validator: ${resp.name}\nTotal staked tokens: ${totalAmount} SUI`, {
                   reply_markup: {
-                    inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]], //save val name to callback data will resotor it
+                    inline_keyboard: [[{ text: 'Show Each Pool', callback_data: `show_each_pool:${valName}` }]],
                   },
                 })
-                .then(() => {
-                  waitingValidatorNameForRewards.set(chatId, false)
-                })
+              if (result) {
+                waitingValidatorNameForRewards.set(chatId, false)
+              }
 
               logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
             })
 
-            .catch((err) => {
-              //console.log(err)
-              bot.sendMessage(chatId, "❗ Can't find validator", { reply_markup: backReplyForValidatorMenu() })
+            .catch(async (err) => {
+              await safeSendMessage(bot, chatId, "❗ Can't find validator", { reply_markup: backReplyForValidatorMenu() })
               logger.warn(`User ${msg.from.username} (${msg.from.id}) can't find validator ${valName}`)
             })
       return
@@ -132,7 +131,7 @@ function attachHandlers(bot) {
         initEventsSubscribe(bot, chatId, validatorAddress, valName, type, sizeOfTokens, isEpochReward, waitingIncludeEpochReward)
         logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${valName}`)
       } else {
-        bot.sendMessage(chatId, 'Please enter `Yes` or `No`', {
+        await safeSendMessage(bot, chatId, 'Please enter `Yes` or `No`', {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: backReply(),
@@ -177,12 +176,12 @@ function attachHandlers(bot) {
           logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${valName}`)
           return
         }
-        bot.sendMessage(chatId, `Would you like to receive notifications for rewards earned during each epoch?`, {
+        await safeSendMessage(bot, chatId, `Would you like to receive notifications for rewards earned during each epoch?`, {
           reply_markup: callbackButtonForIncludeEpochReward(),
         })
         waitingIncludeEpochReward.set(chatId, true)
       } else {
-        bot.sendMessage(chatId, 'Select a valid value', {
+        await safeSendMessage(bot, chatId, 'Select a valid value', {
           reply_markup: { inline_keyboard: backReply() },
         })
       }
@@ -201,7 +200,7 @@ function attachHandlers(bot) {
 
         const validatorInfo = await showCurrentState(validatorName)
         if (!validatorInfo) {
-          bot.sendMessage(chatId, "❗ Can't find validator.", {
+          await safeSendMessage(bot, chatId, "❗ Can't find validator.", {
             reply_markup: { inline_keyboard: backReply() },
           })
           return
@@ -214,15 +213,16 @@ function attachHandlers(bot) {
           const sizeOfTokens = 0 //means all size of tokens
 
           handleInitSubscription(chatId, validatoraddress, validatorName, type, sizeOfTokens)
-            .then(() => {
+            .then(async () => {
               waitingForSizeOfTokensForWs.set(chatId, false)
 
-              bot.sendMessage(chatId, `Event for ${validatorName} has been added ✅`, {
+              await safeSendMessage(bot, chatId, `Event for ${validatorName} has been added ✅`, {
                 reply_markup: subscribeKeyBoard(),
               })
             })
-            .catch(() => {
-              bot.sendMessage(
+            .catch(async () => {
+              await safeSendMessage(
+                bot,
                 chatId,
                 `This event has already been added for ${validatorName}❗️\n\n If you want change, please unsubscribe from old one.`,
                 {
@@ -233,13 +233,12 @@ function attachHandlers(bot) {
 
           logger.info(`User ${msg.from.username} (${msg.from.id}) Subscribed to ${type} for ${validatorName}`)
         } else {
-          bot
-            .sendMessage(chatId, 'Select amount of tokens:', {
-              reply_markup: callbackButtonSizeOfTokens(),
-            })
-            .then(() => {
-              waitingForSizeOfTokensForWs.set(chatId, true)
-            })
+          const result = await safeSendMessage(bot, chatId, 'Select amount of tokens:', {
+            reply_markup: callbackButtonSizeOfTokens(),
+          })
+          if (result) {
+            waitingForSizeOfTokensForWs.set(chatId, true)
+          }
         }
 
         return
@@ -247,20 +246,21 @@ function attachHandlers(bot) {
     }
   })
 
-  bot.onText(new RegExp('/start'), (msg) => {
+  bot.onText(new RegExp('/start'), async (msg) => {
     const chatId = msg.chat.id
 
     handleStartCommand(chatId, msg)
 
-    bot.sendMessage(chatId, START_COMMAND_MESSAGE, { reply_markup: callbackButtonForStartCommand() })
+    await safeSendMessage(bot, chatId, START_COMMAND_MESSAGE, { reply_markup: callbackButtonForStartCommand() })
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /start command`)
   })
 
-  bot.onText(new RegExp('/validator_menu'), (msg) => {
+  bot.onText(new RegExp('/validator_menu'), async (msg) => {
     const chatId = msg.chat.id
 
-    bot.sendMessage(
+    await safeSendMessage(
+      bot,
       chatId,
       'Stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
       { reply_markup: callbackButtonForValidatorCommand() },
@@ -269,10 +269,10 @@ function attachHandlers(bot) {
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /validator_menu command`)
   })
 
-  bot.onText(new RegExp('/discord_announcements'), (msg) => {
+  bot.onText(new RegExp('/discord_announcements'), async (msg) => {
     const chatId = msg.chat.id
 
-    bot.sendMessage(
+    await safeSendMessage(bot,
       chatId,
       `📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](${BOT_INVITE_LINK})`,
       {
@@ -284,44 +284,44 @@ function attachHandlers(bot) {
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /discord_announcements (General Discord Announcements)`)
   })
 
-  bot.onText(new RegExp('/menu'), (msg) => {
+  bot.onText(new RegExp('/menu'), async (msg) => {
     const chatId = msg.chat.id
-    bot.sendMessage(chatId, 'Manage your Sui activities with ease! Choose an option below to get started.', {
+    await safeSendMessage(bot, chatId, 'Manage your Sui activities with ease! Choose an option below to get started.', {
       reply_markup: callbackButtonForStartCommand(),
     })
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /menu command`)
   })
 
-  bot.onText(new RegExp('/validator_info'), (msg) => {
+  bot.onText(new RegExp('/validator_info'), async (msg) => {
     const chatId = msg.chat.id
 
-    bot
-      .sendMessage(chatId, 'Input validator name:', {
-        reply_markup: backReplyForValidatorMenu(),
-      })
-      .then(() => {
-        waitingForValidatorName.set(chatId, true)
-      })
+    const result = await safeSendMessage(bot, chatId, 'Input validator name:', {
+      reply_markup: backReplyForValidatorMenu(),
+    })
+    if (result) {
+      waitingForValidatorName.set(chatId, true)
+    }
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /validator_info command`)
   })
 
-  bot.onText(new RegExp('/stakenotify'), (msg) => {
+  bot.onText(new RegExp('/stakenotify'), async (msg) => {
     const chatId = msg.chat.id
 
-    bot.sendMessage(chatId, 'Get real-time updates on staking events. Manage your subscriptions below', {
+    await safeSendMessage(bot, chatId, 'Get real-time updates on staking events. Manage your subscriptions below', {
       reply_markup: subscribeKeyBoard(),
     })
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /stakenotify command`)
   })
 
-  bot.onText(new RegExp('/rewards'), (msg) => {
+  bot.onText(new RegExp('/rewards'), async (msg) => {
     const chatId = msg.chat.id
 
-    bot.sendMessage(chatId, 'Input validator name:', { reply_markup: backReplyForValidatorMenu() }).then(() => {
+    const result = await safeSendMessage(bot, chatId, 'Input validator name:', { reply_markup: backReplyForValidatorMenu() })
+    if (result) {
       waitingValidatorNameForRewards.set(chatId, true)
-    })
+    }
 
     logger.info(`User ${msg.from.username} (${msg.from.id}) called /rewards command`)
   })
@@ -337,7 +337,7 @@ function attachHandlers(bot) {
   bot.onText(new RegExp('/events_history'), async (msg) => {
     const chatId = msg.chat.id
 
-    bot.sendMessage(chatId, 'Browse all events with custom filters 🔍', {
+    await safeSendMessage(bot, chatId, 'Browse all events with custom filters 🔍', {
       chat_id: chatId,
       reply_markup: callbackButtonWebsite(),
     })
@@ -379,8 +379,7 @@ function attachHandlers(bot) {
 
     switch (action) {
       case 'general_discord_announcements':
-        bot
-          .editMessageText(
+        safeEditMessage(bot,
             `📢 Subscribe to Discord Announcement Channel!\n\nStay informed with the latest Sui Discord announcements. Don’t miss important updates.\n*This subscription is only available to channel owners.*\n\n[Add bot to channel](${BOT_INVITE_LINK})`,
             {
               chat_id: chatId,
@@ -398,8 +397,7 @@ function attachHandlers(bot) {
         break
 
       case 'validators_menu':
-        bot
-          .editMessageText(
+        safeEditMessage(bot,
             'Stay informed and manage all your staking-related activities efficiently. Whether you’re looking for validator info, tracking rewards, or setting up subscriptions for specific events, I’ve got you covered!',
             { chat_id: chatId, message_id: msgId, reply_markup: callbackButtonForValidatorCommand() },
           )
@@ -417,8 +415,7 @@ function attachHandlers(bot) {
         break
 
       case 'set_stake_notify':
-        bot
-          .editMessageText('Get real-time updates on staking events. Manage your subscriptions below', {
+        safeEditMessage(bot, 'Get real-time updates on staking events. Manage your subscriptions below', {
             chat_id: chatId,
             message_id: msgId,
             reply_markup: subscribeKeyBoard(),
@@ -433,8 +430,7 @@ function attachHandlers(bot) {
       case 'show_val_info':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_val_info (Validator Info by Name)`)
 
-        bot
-          .editMessageText('Input validator name:', {
+        safeEditMessage(bot, 'Input validator name:', {
             chat_id: chatId,
             message_id: msgId,
             reply_markup: backReplyForValidatorMenu(),
@@ -451,8 +447,7 @@ function attachHandlers(bot) {
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used show_rewards (Show Rewards By Validator Name)`,
         )
 
-        bot
-          .editMessageText('Input validator name:', {
+        safeEditMessage(bot, 'Input validator name:', {
             chat_id: chatId,
             message_id: msgId,
             reply_markup: backReplyForValidatorMenu(),
@@ -476,8 +471,7 @@ function attachHandlers(bot) {
       case 'delegation':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) used delegation (Subscribe to Stake Event)`)
 
-        bot
-          .sendMessage(chatId, 'Input validator name:', {
+        safeSendMessage(bot, chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
           .then(() => {
@@ -495,8 +489,7 @@ function attachHandlers(bot) {
           `User ${callbackQuery.from.username} (${callbackQuery.from.id}) used epoch_reward (Subscribe to Epoch Rewards Event)`,
         )
 
-        bot
-          .sendMessage(chatId, 'The bot will send updates on earned rewards each time an epoch changes\nInput validator name:', {
+        safeSendMessage(bot, chatId, 'The bot will send updates on earned rewards each time an epoch changes\nInput validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
           .then(() => {
@@ -511,8 +504,7 @@ function attachHandlers(bot) {
 
       //unstake subscription
       case 'undelegation':
-        bot
-          .sendMessage(chatId, 'Input validator name:', {
+        safeSendMessage(bot, chatId, 'Input validator name:', {
             reply_markup: { inline_keyboard: backReply() },
           })
           .then(() => {
@@ -544,7 +536,7 @@ function attachHandlers(bot) {
 
         handleUnsubscribeFromStakeEvents(chatId, valNameForUnsubscribe, typeOfSubscription)
           .then(() => {
-            bot.editMessageText('✅ Done!', {
+            safeEditMessage(bot, '✅ Done!', {
               chat_id: chatId,
               message_id: msg.message_id,
               reply_markup: subscribeKeyBoard(),
@@ -555,7 +547,7 @@ function attachHandlers(bot) {
             logger.error(
               `Error handle unsubscribe, validator: ${valNameForUnsubscribe} type: ${typeOfSubscription} user: ${callbackQuery.from.id}, Error: ${err}`,
             )
-            bot.editMessageText("⛔ Can't find subscription.", {
+            safeEditMessage(bot, "⛔ Can't find subscription.", {
               chat_id: chatId,
               message_id: msg.message_id,
               reply_markup: subscribeKeyBoard(),
@@ -578,8 +570,7 @@ function attachHandlers(bot) {
         waitingIncludeEpochReward.set(chatId, false)
         waitingForSizeOfTokensForWs.set(chatId, false)
 
-        bot
-          .editMessageText('Get real-time updates on staking events. Manage your subscriptions below', {
+        safeEditMessage(bot, 'Get real-time updates on staking events. Manage your subscriptions below', {
             chat_id: chatId,
             message_id: msg.message_id,
             reply_markup: subscribeKeyBoard(),
@@ -593,8 +584,7 @@ function attachHandlers(bot) {
       case 'main_menu':
         logger.info(`User ${callbackQuery.from.username} (${callbackQuery.from.id}) called main_menu (Back to Main Menu)`)
 
-        bot
-          .editMessageText('Manage your Sui activities with ease! Choose an option below to get started.', {
+        safeEditMessage(bot, 'Manage your Sui activities with ease! Choose an option below to get started.', {
             chat_id: chatId,
             message_id: msg.message_id,
             reply_markup: callbackButtonForStartCommand(),
@@ -615,9 +605,10 @@ function attachHandlers(bot) {
             `User ${callbackQuery.from.username} (${callbackQuery.from.id}) called valInfo (Validator Data) callback for ${validatorName}`,
           )
 
-          showCurrentState(validatorName).then((valData) => {
-            const value = valData[key] //set key for show
-            bot.sendMessage(chatId, `The value for ${key} is: ${value}`).then(() => bot.answerCallbackQuery(callbackQuery.id))
+          showCurrentState(validatorName).then(async (valData) => {
+            const value = valData[key]
+            await safeSendMessage(bot, chatId, `The value for ${key} is: ${value}`)
+            bot.answerCallbackQuery(callbackQuery.id)
           })
         } else {
           bot.answerCallbackQuery(callbackQuery.id, "Didn't find data")
@@ -635,19 +626,20 @@ function attachHandlers(bot) {
             const validatorAddress = resp.suiAddress
             const { poolsMessage } = await handleStakedSuiObjectsByName(validatorAddress)
 
-            bot.sendMessage(chatId, `Validator: *${validatorName}*\nFirst 35 pools (telegram limit):\n${poolsMessage}`, {
+            await safeSendMessage(bot, chatId, `Validator: *${validatorName}*\nFirst 35 pools (telegram limit):\n${poolsMessage}`, {
               parse_mode: 'Markdown',
             })
             bot.answerCallbackQuery(callbackQuery.id)
-            logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${valName}`)
+            logger.info(`User ${msg.from.username} (${msg.from.id}) show rewards pool for ${validatorName}`)
           })
-          .catch(() => {})
+          .catch((err) => {
+            logger.error(`Error showing pool for ${validatorName}: ${err.message}`)
+          })
 
         break
 
       case 'view_all_events_history':
-        bot
-          .editMessageText('Browse all events with custom filters 🔍', {
+        safeEditMessage(bot, 'Browse all events with custom filters 🔍', {
             chat_id: chatId,
             message_id: msgId,
             reply_markup: callbackButtonWebsite(),
@@ -675,7 +667,7 @@ function attachHandlers(bot) {
         try {
           await updateAnnouncementSubscription(bot, chatId, msgId, channel)
         } catch (err) {
-          await bot.sendMessage(chatId, `${err.message}`)
+          await safeSendMessage(bot, chatId, `${err.message}`)
         } finally {
           await bot.answerCallbackQuery(callbackQuery.id)
         }
@@ -690,7 +682,7 @@ function attachHandlers(bot) {
         try {
           await updateGeneralAnnouncementSubscription(bot, chatId, msgId, generakChannelId)
         } catch (err) {
-          await bot.sendMessage(chatId, `${err.message}`)
+          await safeSendMessage(bot, chatId, `${err.message}`)
         } finally {
           await bot.answerCallbackQuery(callbackQuery.id)
         }
@@ -700,7 +692,7 @@ function attachHandlers(bot) {
         break
 
       default:
-        bot.sendMessage(chatId, `Unknown command send /menu`)
+        await safeSendMessage(bot, chatId, `Unknown command send /menu`)
         break
     }
   })

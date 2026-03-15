@@ -3,6 +3,7 @@ import logger from '../../utils/handle-logs/logger.js'
 import handleGraphQLSubscriptions from '../../api-interaction/graphql-handler.js'
 import { unsubscribeCallBackButton, keyboardForNotActiveSubscriptions } from '../keyboards/validators-menu-keyboard.js'
 import getAmountOfTokens from '../../utils/getTokenAmountString.js'
+import { safeEditMessage } from '../../utils/safe-send.js'
 
 const usersSubscriptions = new Map() //list of all active Subscriptions
 
@@ -189,7 +190,7 @@ async function handleTotalSubscriptions(bot, chatId, msg) {
   const userSubscriptions = usersSubscriptions.get(chatId)
 
   if (userSubscriptions) {
-    bot.editMessageText('Click a button below to unsubscribe from specific event.\nYou can re-enable them anytime.', {
+    await safeEditMessage(bot, 'Click a button below to unsubscribe from specific event.\nYou can re-enable them anytime.', {
       chat_id: chatId,
       message_id: msg.message_id,
       reply_markup: {
@@ -197,7 +198,7 @@ async function handleTotalSubscriptions(bot, chatId, msg) {
       },
     })
   } else {
-    bot.editMessageText(`You don't have active subscriptions. Chooose event below`, {
+    await safeEditMessage(bot, `You don't have active subscriptions. Chooose event below`, {
       chat_id: chatId,
       message_id: msg.message_id,
       reply_markup: keyboardForNotActiveSubscriptions(),

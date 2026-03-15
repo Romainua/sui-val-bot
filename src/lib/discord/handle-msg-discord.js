@@ -1,5 +1,6 @@
 import logger from '../../utils/handle-logs/logger.js'
 import getRoleNameById from './getRoleId.js'
+import { safeSendMessage, isBotBlockedError } from '../../utils/safe-send.js'
 
 export default async function sendTelegramMessageForDiscord(bot, chatId, messageContent, channelName, messageLink) {
   const formattedMessageContent = await replaceRoleMentionsAndAdText(messageContent)
@@ -18,6 +19,11 @@ export default async function sendTelegramMessageForDiscord(bot, chatId, message
       disable_web_page_preview: true,
     })
   } catch (error) {
+    if (isBotBlockedError(error)) {
+      logger.warn(`Bot was blocked by user (chatId: ${chatId}). Discord announcement not delivered.`)
+      return
+    }
+
     if (error.response && error.response.body && error.response.body.description) {
       const errorMessage = error.response.body.description
 
@@ -26,17 +32,18 @@ export default async function sendTelegramMessageForDiscord(bot, chatId, message
       }
 
       if (errorMessage === 'Bad Request: chat not found') {
-        logger.error('Error: chat not found.')
+        logger.error(`Error: chat not found (chatId: ${chatId}).`)
+        return
       }
     }
 
-    await bot.sendMessage(chatId, `New Announcement in ${channelName}`, {
+    await safeSendMessage(bot, chatId, `New Announcement in ${channelName}`, {
       reply_markup: {
         inline_keyboard: [[{ text: 'View on Discord 🔗', url: messageLink }]],
       },
       disable_web_page_preview: true,
     })
-    logger.error(`Error resending message from Discord: ${JSON.stringify(error, null, 2)}`)
+    logger.error(`Error resending message from Discord to chatId ${chatId}: ${error.message}`)
   }
 }
 

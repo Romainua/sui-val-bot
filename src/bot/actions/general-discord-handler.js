@@ -2,6 +2,7 @@ import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
 import getChannelName from '../../lib/discord/getChannelName.js'
 import { callbackButtonWithChannels, callbackAddBotToChannel } from '../keyboards/discord-ann-keyboard.js'
+import { safeEditMessage } from '../../utils/safe-send.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -12,7 +13,7 @@ async function handleDiscordGeneralCommand(bot, chatId, msgId) {
   const isUserAddedChannel = await ClientDb.getUserTelegramChannels(chatId)
 
   if (isUserAddedChannel.length === 0) {
-    bot.editMessageText('You have not added any channels. Please add bot to your channel.\nClick button below.', {
+    await safeEditMessage(bot, 'You have not added any channels. Please add bot to your channel.\nClick button below.', {
       chat_id: chatId,
       message_id: msgId,
       reply_markup: callbackAddBotToChannel(),
@@ -46,7 +47,7 @@ async function handleDiscordGeneralCommand(bot, chatId, msgId) {
 
     const message = `Select a channel to receive Discord announcements.\nYou will get updates from this channel on your own channels.`
 
-    bot.editMessageText(message, {
+    await safeEditMessage(bot, message, {
       chat_id: chatId,
       message_id: msgId,
       reply_markup: callbackButtonWithChannels(listOfSubscriptions),
