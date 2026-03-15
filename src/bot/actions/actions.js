@@ -4,6 +4,7 @@ import logger from '../../utils/handle-logs/logger.js'
 import valInfoKeyboard from '../keyboards/val-info-keyboard.js'
 import getStakingPoolIdObjectsByName from '../../api-interaction/validator-cap.js'
 import { callbackButtonForValidatorCommand } from '../keyboards/validators-menu-keyboard.js'
+import { safeSendMessage } from '../../utils/safe-send.js'
 
 async function handleGetPrice(bot, chatId) {
   try {
@@ -12,10 +13,10 @@ async function handleGetPrice(bot, chatId) {
     const formattedValidatorsInfo = selectedValidators
       .map(({ name, nextEpochGasPrice, votingPower }, index) => `${index + 1} ${name}: ${nextEpochGasPrice}, vp – ${votingPower}`)
       .join('\n')
-    await bot.sendMessage(chatId, `Next epoch gas price by total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`)
-    bot.sendMessage(chatId, `Choose a button`, { reply_markup: callbackButtonForValidatorCommand() })
+    await safeSendMessage(bot, chatId, `Next epoch gas price by total voting power: ${currentVotingPower}\n${formattedValidatorsInfo}`)
+    await safeSendMessage(bot, chatId, `Choose a button`, { reply_markup: callbackButtonForValidatorCommand() })
   } catch (error) {
-    bot.sendMessage(chatId, 'Error: ' + error.message)
+    await safeSendMessage(bot, chatId, 'Error: ' + error.message)
   }
 }
 
@@ -24,7 +25,8 @@ async function handleValidatorInfo(bot, chatId, identy) {
 
   const keyboard = valInfoKeyboard(validatorData)
 
-  await bot.sendMessage(
+  await safeSendMessage(
+    bot,
     chatId,
     'Select an option to view validator details or metrics.\nUse the buttons below to choose the information you want to see.',
     {
