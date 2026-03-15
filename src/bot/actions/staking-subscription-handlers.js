@@ -1,6 +1,6 @@
 import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
-import handleWsSubscruptions from '../../api-interaction/ws-handler.js'
+import handleGraphQLSubscriptions from '../../api-interaction/graphql-handler.js'
 import { unsubscribeCallBackButton, keyboardForNotActiveSubscriptions } from '../keyboards/validators-menu-keyboard.js'
 import getAmountOfTokens from '../../utils/getTokenAmountString.js'
 
@@ -45,7 +45,7 @@ async function handleInitRestorSubscriptions(bot) {
           }
         }
       }
-      await handleWsSubscruptions(bot, usersSubscriptions)
+      await handleGraphQLSubscriptions(bot, usersSubscriptions)
     })
     .catch((err) => {
       logger.error(`Error in handleInitRestorSubscriptions: ${err}`)
