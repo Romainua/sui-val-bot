@@ -36,7 +36,7 @@ function transformToLegacyFormat(node) {
     params: {
       result: {
         type: node.contents.type.repr,
-        sender: node.sender?.address,
+        sender: node.sender?.address ?? EPOCH_REWARD_SENDER,
         id: { txDigest: node.transaction?.digest },
         parsedJson: node.contents.json,
       },
@@ -48,11 +48,11 @@ function processEvents(nodes, eventType, bot, usersSubscriptions) {
   for (const node of nodes) {
     const parsedJson = node.contents.json
     const validatorAddress = parsedJson.validator_address
-    const sender = node.sender?.address
+    const sender = node.sender?.address ?? null
 
     const isStakingEvent = eventType === STAKING_EVENT_TYPE
     const mappedEventType = isStakingEvent ? 'delegate' : 'undelegate'
-    const isEpochReward = isStakingEvent && sender === EPOCH_REWARD_SENDER
+    const isEpochReward = isStakingEvent && sender === null
 
     const legacyData = transformToLegacyFormat(node)
 
