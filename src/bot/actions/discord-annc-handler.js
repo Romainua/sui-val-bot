@@ -2,6 +2,7 @@ import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
 import getChannelName from '../../lib/discord/getChannelName.js'
 import { callbackButtonForDiscordNotVerify, callbackButtonForDiscordVerified } from '../keyboards/validators-menu-keyboard.js'
+import { safeSendMessage, safeEditMessage } from '../../utils/safe-send.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -20,13 +21,13 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
       - **\`guilds.members.read\`**: This permission allows us to check your membership and roles in the server to determine if you have access to the announcements.\n
     `
       msgId
-        ? bot.editMessageText(message, {
+        ? await safeEditMessage(bot, message, {
             parse_mode: 'Markdown',
             chat_id: chatId,
             message_id: msgId,
             reply_markup: callbackButtonForDiscordNotVerify(chatId),
           })
-        : bot.sendMessage(chatId, message, {
+        : await safeSendMessage(bot, chatId, message, {
             parse_mode: 'Markdown',
             reply_markup: callbackButtonForDiscordNotVerify(chatId),
           })
@@ -48,12 +49,12 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
       const message = `You are a verified member! 🎉\nYour role has been verified, you now have access to exclusive announcements and updates, select channel.`
 
       msgId
-        ? bot.editMessageText(message, {
+        ? await safeEditMessage(bot, message, {
             chat_id: chatId,
             message_id: msgId,
             reply_markup: callbackButtonForDiscordVerified(listOfSubscriptions),
           })
-        : bot.sendMessage(chatId, message, {
+        : await safeSendMessage(bot, chatId, message, {
             reply_markup: callbackButtonForDiscordVerified(listOfSubscriptions),
           })
     }

@@ -1,6 +1,7 @@
 import msgChannelHandler from '../../lib/msg-handlers/msg-bot-authorization.js'
 import ClientDb from '../../db-interaction/db-hendlers.js'
 import logger from '../../utils/handle-logs/logger.js'
+import { safeSendMessage } from '../../utils/safe-send.js'
 
 export default function attachChannelHandlers(bot) {
   bot.on('my_chat_member', async (msg) => {
@@ -14,7 +15,8 @@ export default function attachChannelHandlers(bot) {
     const canPostMessages = msg.new_chat_member.can_post_messages
 
     if (!canPostMessages) {
-      bot.sendMessage(
+      await safeSendMessage(
+        bot,
         chatId,
         `❗️ Bot can not post messages. Please, garantee that bot can post messages in the channel @${chat.username}`,
       )
