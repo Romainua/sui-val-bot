@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import logger from '../utils/handle-logs/logger.js'
 import _ from 'lodash'
 import client from './db.js'
@@ -15,10 +16,20 @@ class ClientDb {
         is_validator_verified BOOLEAN DEFAULT FALSE,
         announcement_subscriptions JSONB DEFAULT '[]'
       );
+
+      ALTER TABLE user_data ADD COLUMN IF NOT EXISTS discord_user_id TEXT;
+      ALTER TABLE user_data ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
+
+      CREATE TABLE IF NOT EXISTS auth_nonce (
+        nonce TEXT PRIMARY KEY,
+        chat_id BIGINT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS auth_nonce_expires_at_idx ON auth_nonce (expires_at);
     `
     try {
       await this.client.query(queryText)
-      logger.info('Table created or already exists')
+      logger.info('Schema is up to date')
     } catch (err) {
       logger.error(`Error creating table: ${err.stack}`)
     }
@@ -78,26 +89,76 @@ class ClientDb {
     }
   }
 
-  async updateIsVerifiedColumn(id, value) {
+  // Records which Discord account performed the verification, so access can later be
+  // audited and revoked. Throws when no row matched: a silent no-op here is how a user
+  // ends up seeing a success message while never actually being verified.
+  async updateIsVerifiedColumn(id, value, discordUserId = null) {
     const queryText = `
       UPDATE user_data
-      SET is_validator_verified = $2
+      SET is_validator_verified = $2,
+          discord_user_id = COALESCE($3, discord_user_id),
+          verified_at = CASE WHEN $2 THEN NOW() ELSE NULL END
       WHERE id = $1;
     `
+    const result = await this.client.query(queryText, [id, value, discordUserId])
+
+    if (result.rowCount === 0) {
+      throw new Error(`No user_data row for chat id ${id} — the user must run /start first`)
+    }
+
+    logger.info(`Set is_validator_verified=${value} for chat id ${id}`)
+  }
+
+  // Fails closed: any error or missing row is treated as "not verified".
+  async isVerifiedValidator(chatId) {
     try {
-      await this.client.query(queryText, [id, value])
-      logger.info(`Successfully updated is_validator_verified to ${value} for user with ID: ${id}`)
+      const result = await this.client.query('SELECT is_validator_verified FROM user_data WHERE id = $1', [chatId])
+      return result.rows[0]?.is_validator_verified === true
     } catch (err) {
-      logger.error(`Failed to update is_validator_verified: ${err.stack}`)
+      logger.error(`Error executing query to get is_validator_verified: ${err.stack}`)
+      return false
     }
   }
 
-  async getIsVerifiedValidator(chatId) {
+  async getDiscordUserId(chatId) {
     try {
-      const result = await this.client.query('SELECT is_validator_verified FROM user_data WHERE id = $1', [chatId])
-      return result.rows
+      const result = await this.client.query('SELECT discord_user_id FROM user_data WHERE id = $1', [chatId])
+      return result.rows[0]?.discord_user_id ?? null
     } catch (err) {
-      logger.error(`Error executing query to get is_validator_verified: ${err.stack}`)
+      logger.error(`Error executing query to get discord_user_id: ${err.stack}`)
+      return null
+    }
+  }
+
+  // --- Discord OAuth state nonces ---
+  // The OAuth `state` must not carry trust-bearing data. Instead it carries an opaque
+  // random nonce that maps, server-side, to exactly one chat id for a short window.
+
+  async createAuthNonce(chatId, ttlMinutes = 10) {
+    const nonce = randomUUID()
+
+    await this.client.query(
+      `INSERT INTO auth_nonce (nonce, chat_id, expires_at) VALUES ($1, $2, NOW() + ($3 || ' minutes')::interval);`,
+      [nonce, chatId, String(ttlMinutes)],
+    )
+
+    // Opportunistic cleanup; failure here must not block the user.
+    this.client.query('DELETE FROM auth_nonce WHERE expires_at < NOW();').catch(() => {})
+
+    return nonce
+  }
+
+  // Atomically redeems a nonce. DELETE ... RETURNING makes redemption single-use even
+  // if two callbacks arrive concurrently. Returns the bound chat id, or null.
+  async consumeAuthNonce(nonce) {
+    try {
+      const result = await this.client.query(
+        `DELETE FROM auth_nonce WHERE nonce = $1 AND expires_at > NOW() RETURNING chat_id;`,
+        [nonce],
+      )
+      return result.rows[0]?.chat_id ?? null
+    } catch (err) {
+      logger.error(`Failed to consume auth nonce: ${err.stack}`)
       return null
     }
   }
