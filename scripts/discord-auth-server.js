@@ -3,14 +3,11 @@ import axios from 'axios'
 import dotenv from 'dotenv'
 import ClientDb from '../src/db-interaction/db-hendlers.js'
 import logger from '../src/utils/handle-logs/logger.js'
-import cors from 'cors'
 import { callbackButtonForDiscordNotVerify } from '../src/bot/keyboards/validators-menu-keyboard.js'
 
 dotenv.config()
 
 const app = express()
-
-app.use(cors())
 
 const port = process.env.PORT_DISCORD_AUTH_SERVER || 3000
 
@@ -20,96 +17,94 @@ const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
 
-let GUILD_ID = ''
-let REQUIRED_ROLE_ID = ''
-let TELEGRAM_CHAT_ID = ''
+// Trust configuration is read here, from this server's own environment, and NEVER from the
+// request. The OAuth `state` round-trips through the user's browser, so anything carried in
+// it is fully attacker-controlled — including, previously, the guild and the required role.
+const GUILD_ID = process.env.GUILD_ID
+const REQUIRED_ROLE_ID = process.env.REQUIRED_ROLE_ID
+
 const DISCORD_API_USERS_URL = 'https://discord.com/api/v10/users/@me'
 const DISCORD_API_OAUTH2_URL = 'https://discord.com/api/v10/oauth2/token'
 
+// Fail fast rather than silently checking membership against `undefined`.
+const REQUIRED_ENV = {
+  CLIENT_ID,
+  CLIENT_SECRET,
+  DISCORD_REDIRECT_URI,
+  TELEGRAM_BOT_TOKEN,
+  DISCORD_BOT_TOKEN,
+  GUILD_ID,
+  REQUIRED_ROLE_ID,
+}
+
+for (const [name, value] of Object.entries(REQUIRED_ENV)) {
+  if (!value) {
+    logger.error(`Missing required environment variable: ${name}. Refusing to start.`)
+    process.exit(1)
+  }
+}
+
+// Ensure the auth_nonce table exists before the first callback arrives.
+ClientDb.createTableIfNotExists().catch((err) => logger.error(`Schema init failed: ${err.message}`))
+
 app.get('/auth/discord/callback', async (req, res) => {
-  const { code, state, guild, role } = req.query
-  console.log(req.query)
-  console.log(code, state, guild, role)
+  const { code, state } = req.query
 
   if (!code) return res.status(400).send('Missing code parameter')
   if (!state) return res.status(400).send('Missing state parameter')
 
-  const decodedState = decodeURIComponent(state)
-  const stateParts = decodedState.split(':')
+  // Redeem the nonce for the chat id it was minted against. This is atomic and single-use,
+  // which also gives us CSRF and replay protection: a link that was already used, or minted
+  // more than 10 minutes ago, resolves to null. Every value below is request-scoped — module
+  // level `let`s would be overwritten by a concurrent request during the awaits that follow.
+  const chatId = await ClientDb.consumeAuthNonce(decodeURIComponent(state))
 
-  ;[TELEGRAM_CHAT_ID, GUILD_ID, REQUIRED_ROLE_ID] = stateParts
+  if (!chatId) {
+    logger.warn('Discord callback presented an unknown, expired, or already-used state nonce')
+    return res
+      .status(400)
+      .send('This verification link is invalid or has expired. Please request a new one from the bot.')
+  }
 
-  let access_token
-  let refresh_token
-  let expires_in
-  let user
   try {
-    // Step 1: Fetch tokens using the authorization code
-    const response = await getAccessToken(code)
+    const { access_token } = await getAccessToken(code)
 
-    access_token = response.access_token
-    refresh_token = response.refresh_token
-    expires_in = response.expires_in
+    const user = await fetchDiscordUserData(access_token)
 
-    // Step 2: Fetch user details from Discord API
-    const userData = await fetchDiscordUserData(access_token)
-
-    user = userData
-
-    if (!user) {
-      const response = await refreshAccessToken(refresh_token)
-
-      access_token = response.access_token
-      refresh_token = response.refresh_token
-      expires_in = response.expires_in
-
-      const userData = await fetchDiscordUserData(access_token)
-
-      user = userData
+    if (!user?.id) {
+      logger.error(`Could not read Discord profile for chat id ${chatId}`)
+      return res.status(502).send('Could not read your Discord profile. Please try again.')
     }
 
-    // Step 3: Check if the user has the required role
     const hasRequiredRole = await checkUserRole(user.id)
 
-    if (hasRequiredRole) {
-      // Step 4: Update verification status and send success message
-      await handleUpdateVerification(TELEGRAM_CHAT_ID, true)
+    if (!hasRequiredRole) {
+      const failureMessage = `❌ Hello ${user.username}, you do not have the required role.`
 
-      const successMessage = `
+      await sendTelegramMessage(chatId, failureMessage, false)
+      logger.warn(`Discord user ${user.id} lacks the required role (chat id ${chatId})`)
+
+      return res.status(403).send('Failure! You do not have the required role.')
+    }
+
+    // Throws if no row matched, so we never claim success for an unverified user.
+    await ClientDb.updateIsVerifiedColumn(chatId, true, user.id)
+
+    const successMessage = `
         ✅ **You are a verified member ${user.username}!** 🎉
         
         Welcome, validator! Your role has been verified, you now have access to exclusive announcements and updates.
       `
 
-      await sendTelegramMessage(TELEGRAM_CHAT_ID, successMessage, true)
+    await sendTelegramMessage(chatId, successMessage, true)
 
-      // Step 5: Set cookies securely and redirect
-      res
-        .cookie(
-          'token',
-          {
-            access_token,
-            refresh_token,
-          },
-          {
-            maxAge: expires_in * 1000, // Duration in milliseconds (e.g., 604800 seconds -> 7 days)
-          },
-        )
-        .redirect('/success') // Replace with a success page URL
-    } else {
-      // Handle failure: User lacks the required role
-      const failureMessage = `❌ Hello ${user.username}, you do not have the required role.`
-
-      await sendTelegramMessage(TELEGRAM_CHAT_ID, failureMessage, false)
-      logger.warn(`User with ID ${user.id} does not have the required role.`)
-
-      return res.status(403).send('Failure! You do not have the required role.')
-    }
+    // No tokens are persisted anywhere: they are not needed past this point, and a cookie
+    // carrying a refresh token is a standing credential-leak risk.
+    return res.redirect('/success')
   } catch (error) {
-    // Handle errors during token exchange or role checking
-    logger.error(`Error during Discord authentication or role checking: ${JSON.stringify(error.response?.data) || error.message}`)
+    logger.error(`Discord authentication failed for chat id ${chatId}: ${error.message}`)
 
-    return res.status(500).send('Authentication failed.')
+    return res.status(500).send('Authentication failed. Please try again later.')
   }
 })
 
@@ -119,7 +114,7 @@ app.get('/', (req, res) => {
 })
 
 app.get('/success', (req, res) => {
-  res.send('Authentication successful!')
+  res.send('Authentication successful! You can close this tab and return to Telegram.')
 })
 
 // Start the server
@@ -127,7 +122,7 @@ app.listen(port, () => {
   logger.info(`Discord auth server running on http://localhost:${port}`)
 })
 
-// Function to fetch user information
+// Fetch the authenticated user's Discord profile.
 async function fetchDiscordUserData(token) {
   try {
     const response = await axios.get(DISCORD_API_USERS_URL, {
@@ -136,18 +131,17 @@ async function fetchDiscordUserData(token) {
       },
     })
 
-    return response.data // Return the user data
+    return response.data
   } catch (error) {
     if (error.response?.status === 401) {
-      return null // Return null if the token is invalid or expired
+      return null
     }
 
-    // Throw the error for any other issues
     throw new Error(`Error fetching user data: ${error.message}`)
   }
 }
 
-// Function to get access token using the authorization code
+// Exchange the authorization code for an access token.
 async function getAccessToken(code) {
   try {
     const response = await axios.post(
@@ -158,7 +152,6 @@ async function getAccessToken(code) {
         grant_type: 'authorization_code',
         code: code,
         redirect_uri: DISCORD_REDIRECT_URI,
-        scope: 'identify guilds.members.read',
       }).toString(),
       {
         headers: {
@@ -167,41 +160,18 @@ async function getAccessToken(code) {
       },
     )
 
-    logger.info(`Access Token Response: ${JSON.stringify(response.data)}`)
+    // Deliberately not logging the response body: it contains access_token and refresh_token.
+    logger.info(`Access token obtained (expires_in=${response.data.expires_in}s)`)
+
     return response.data
   } catch (error) {
-    logger.error('Failed to get access token:', error.response?.data || error.message)
-    throw new Error(`Failed to get access token: ${error.message}`)
-  }
-}
-async function refreshAccessToken(refreshToken) {
-  try {
-    const response = await axios.post(
-      DISCORD_API_OAUTH2_URL,
-      new URLSearchParams({
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        redirect_uri: DISCORD_REDIRECT_URI,
-        scope: 'identify guilds.members.read',
-      }).toString(),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      },
-    )
-
-    return response.data // Return the new token data
-  } catch (error) {
-    logger.error(`Failed to refresh access token: ${error.message}`)
-    throw error
+    logger.error(`Failed to get access token: HTTP ${error.response?.status || 'n/a'}`)
+    throw new Error('Failed to get access token')
   }
 }
 
-// Function to check if the user has the required role
-async function checkUserRole(userId) {
+// Check role membership using the BOT token, so the answer cannot be influenced by the user.
+export async function checkUserRole(userId) {
   try {
     const response = await axios.get(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`, {
       headers: {
@@ -209,25 +179,17 @@ async function checkUserRole(userId) {
       },
     })
 
-    const member = response.data
-    return member.roles.includes(REQUIRED_ROLE_ID)
+    return response.data.roles.includes(REQUIRED_ROLE_ID)
   } catch (error) {
-    if (error.response?.data?.code === 10007) {
-      logger.warn(`User with ID ${userId} is not a member of the guild.`)
-    } else {
-      logger.error(`Error checking user roles: ${error.message}`)
+    // 404 / Unknown Member is a definitive "no": the user is not in the guild.
+    if (error.response?.status === 404 || error.response?.data?.code === 10007) {
+      logger.warn(`Discord user ${userId} is not a member of guild ${GUILD_ID}`)
+      return false
     }
-    return false
-  }
-}
 
-async function handleUpdateVerification(chatId, isVerifedValidator) {
-  try {
-    await ClientDb.updateIsVerifiedColumn(chatId, isVerifedValidator)
-
-    logger.info(`Chat id: ${chatId} validator is verified: ${isVerifedValidator}`)
-  } catch (error) {
-    logger.error(`Error to update verification: ${error.message}`)
+    // Anything else (429, 5xx, network) means "unknown", not "no". Propagate it so the
+    // caller fails closed with an accurate message instead of asserting the role is absent.
+    throw new Error(`Role check failed for user ${userId}: ${error.message}`)
   }
 }
 
@@ -236,17 +198,17 @@ async function sendTelegramMessage(chatId, message, isVerifed) {
     inline_keyboard: [[{ text: 'Subscribe To Discord Announcements 📢', callback_data: 'discord_announcements' }]],
   }
 
-  const notVerifiedButtons = callbackButtonForDiscordNotVerify(chatId)
-
   try {
+    const replyMarkup = isVerifed ? verifiedButtons : await callbackButtonForDiscordNotVerify(chatId)
+
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
     await axios.post(url, {
       parse_mode: 'Markdown',
       chat_id: chatId,
       text: message,
-      reply_markup: isVerifed ? verifiedButtons : notVerifiedButtons,
+      reply_markup: replyMarkup,
     })
   } catch (error) {
-    logger.error(`Error sending message to Telegram: ${error.response?.data || error.message}`)
+    logger.error(`Error sending message to Telegram: ${error.response?.data?.description || error.message}`)
   }
 }

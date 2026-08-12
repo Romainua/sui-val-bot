@@ -3,6 +3,7 @@ import logger from '../../utils/handle-logs/logger.js'
 import getChannelName from '../../lib/discord/getChannelName.js'
 import { callbackButtonForDiscordNotVerify, callbackButtonForDiscordVerified } from '../keyboards/validators-menu-keyboard.js'
 import { safeSendMessage, safeEditMessage } from '../../utils/safe-send.js'
+import { PRIVACY_POLICY_URL } from '../../utils/constants/bot-messages.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -11,25 +12,29 @@ const DISCORD_VALIDATORS_CHANNEL_IDS = process.env.DISCORD_VALIDATORS_CHANNEL_ID
 
 async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
   try {
-    const isVerifiedValidator = await ClientDb.getIsVerifiedValidator(chatId)
+    const isVerified = await ClientDb.isVerifiedValidator(chatId)
 
-    if (!isVerifiedValidator[0].is_validator_verified) {
+    if (!isVerified) {
       const message = `
       📢 **Subscribe to Discord Announcements** 📢\n
       Stay updated with the latest news and announcements from the Discord server!\n
       To subscribe, you need to authenticate so we can verify your roles and ensure you have the necessary permissions. During authentication, we will request the following permission:\n
-      - **\`guilds.members.read\`**: This permission allows us to check your membership and roles in the server to determine if you have access to the announcements.\n
+      - **\`identify\`**: Lets us read your Discord user ID so we can check your roles in this server and determine whether you have access to the announcements.\n
+      We never read your messages, DMs or email address.\n
+      [Privacy Policy](${PRIVACY_POLICY_URL})\n
     `
+      const notVerifiedKeyboard = await callbackButtonForDiscordNotVerify(chatId)
+
       msgId
         ? await safeEditMessage(bot, message, {
             parse_mode: 'Markdown',
             chat_id: chatId,
             message_id: msgId,
-            reply_markup: callbackButtonForDiscordNotVerify(chatId),
+            reply_markup: notVerifiedKeyboard,
           })
         : await safeSendMessage(bot, chatId, message, {
             parse_mode: 'Markdown',
-            reply_markup: callbackButtonForDiscordNotVerify(chatId),
+            reply_markup: notVerifiedKeyboard,
           })
     } else {
       let listOfSubscriptions = await ClientDb.getActiveAnnouncementSubscriptions(chatId)
@@ -80,9 +85,7 @@ async function initAnnouncementSubscription(chatId, channelId) {
 }
 
 async function updateAnnouncementSubscription(bot, chatId, msgId, channelId) {
-  const getIsVerifiedValidator = await ClientDb.getIsVerifiedValidator(chatId)
-
-  if (!getIsVerifiedValidator[0].is_validator_verified) {
+  if (!(await ClientDb.isVerifiedValidator(chatId))) {
     throw new Error('You are not authorized. Your account is not a verified validator.')
   }
 

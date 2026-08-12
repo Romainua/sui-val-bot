@@ -1,4 +1,5 @@
 import dotenv from 'dotenv'
+import ClientDb from '../../db-interaction/db-hendlers.js'
 dotenv.config()
 
 function callbackButtonForStartCommand() {
@@ -115,15 +116,16 @@ function callbackButtonWebsite() {
   }
 }
 
-function callbackButtonForDiscordNotVerify(chatId) {
+// The OAuth `state` carries ONLY an opaque single-use nonce. It must never carry the
+// guild id, the required role id, or an unauthenticated chat id: all three are trust
+// decisions, and anything placed in `state` is fully controlled by whoever opens the URL.
+// The server resolves the nonce back to a chat id and reads guild/role from its own config.
+async function callbackButtonForDiscordNotVerify(chatId) {
   const BASE_AUTH_URL = process.env.BASE_AUTH_URL
-  const GUILD_ID = process.env.GUILD_ID
-  const REQUIRED_ROLE_ID = process.env.REQUIRED_ROLE_ID
 
-  const stateData = `${chatId}:${GUILD_ID}:${REQUIRED_ROLE_ID}`
-  const encodedState = encodeURIComponent(stateData)
+  const nonce = await ClientDb.createAuthNonce(chatId)
 
-  const OAuth2_URL = `${BASE_AUTH_URL}&state=${encodedState}`
+  const OAuth2_URL = `${BASE_AUTH_URL}&state=${encodeURIComponent(nonce)}`
   return {
     inline_keyboard: [[{ text: 'Verify Discord Role', url: OAuth2_URL }], [{ text: '⬅ Back', callback_data: 'validators_menu' }]],
   }
