@@ -1,5 +1,7 @@
 # Sui Validator Bot with db
 
+📄 **[Privacy Policy](https://github.com/Romainua/sui-val-bot/blob/main/PRIVACY.md)** — what data the bot stores, how long, and how to have it deleted.
+
 **If there is no working machine nearby it is enough to have a phone to set the necessary parameters for your
 validator**
 

@@ -1,3 +1,5 @@
+export const PRIVACY_POLICY_URL = 'https://github.com/Romainua/sui-val-bot/blob/main/PRIVACY.md'
+
 export const START_COMMAND_MESSAGE = `Welcome to the Sui Bot! 🤖
 
 I’m here to keep you connected with everything Sui. From real-time staking events to the latest Discord announcements, I’ve got you covered! Here’s what you can do:
@@ -9,4 +11,6 @@ I’m here to keep you connected with everything Sui. From real-time staking eve
 	•	📣 Subscribe to Discord Announcements: Never miss important news.
 	•	📊 View All Events History: See past activities and events.
 
-Choose an option below to get started!`
+Choose an option below to get started!
+
+📄 Privacy Policy: ${PRIVACY_POLICY_URL}`
