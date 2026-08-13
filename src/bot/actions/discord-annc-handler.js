@@ -128,14 +128,20 @@ async function updateAnnouncementSubscription(bot, chatId, msgId, channelId) {
     throw new Error('You are not authorized. Your account is not a verified validator.')
   }
 
-  const listOfSubscriptions = await ClientDb.getActiveAnnouncementSubscriptions(chatId)
+  let listOfSubscriptions = await ClientDb.getActiveAnnouncementSubscriptions(chatId)
 
-  listOfSubscriptions.forEach(async (channel) => {
+  // Sequential for...of: an async callback passed to forEach is never awaited, so the
+  // status write raced the reply that reported it as done.
+  for (const channel of listOfSubscriptions || []) {
     if (channel.channelId === channelId) {
       channel.status = !channel.status
       await ClientDb.updateStatusOfChannel(chatId, channelId, channel.status)
     }
-  })
+  }
+
+  // Rows read straight from the database still lack a name while Discord denies access;
+  // retry the lookup here too so the menu can heal without reopening it.
+  listOfSubscriptions = await backfillMissingNames(chatId, listOfSubscriptions)
 
   try {
     const inlineKeyboard = callbackButtonForDiscordVerified(listOfSubscriptions)

@@ -25,10 +25,15 @@ async function callbackButtonForDiscordNotVerify(chatId) {
 }
 
 function callbackButtonForDiscordVerified(listOfSubscriptions) {
-  const keyboard = listOfSubscriptions.map((obj) => {
+  const keyboard = (listOfSubscriptions || []).map((obj) => {
+    // The label falls back to the channel id here rather than at each call site: this is
+    // the single place buttons are rendered, so a caller that fetched raw rows straight
+    // from the database can no longer leak a bare "undefined" into the menu.
+    const label = obj?.name || obj?.channelId
+
     return {
-      text: obj.name + ` (${obj.status === true ? 'ON ✅' : 'OFF ❌'})`,
-      callback_data: `update_discord_announcements:${obj.channelId}`,
+      text: `${label} (${obj?.status === true ? 'ON ✅' : 'OFF ❌'})`,
+      callback_data: `update_discord_announcements:${obj?.channelId}`,
     }
   })
 
