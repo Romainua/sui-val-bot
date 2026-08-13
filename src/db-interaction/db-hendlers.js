@@ -206,6 +206,20 @@ class ClientDb {
     }
   }
 
+  // Rewrites the whole array. Unlike insertAnnouncementSubscribeData this does not
+  // dedupe-and-append, so it can repair existing entries rather than only add new ones.
+  async setAnnouncementSubscriptions(chatId, subscriptions) {
+    try {
+      await this.client.query('UPDATE user_data SET announcement_subscriptions = $2 WHERE id = $1', [
+        chatId,
+        JSON.stringify(subscriptions),
+      ])
+    } catch (err) {
+      logger.error(`Failed to rewrite announcement subscriptions for chat id ${chatId}: ${err.stack}`)
+      throw err
+    }
+  }
+
   async dropAllAnnouncementSubscriptions(chatId) {
     try {
       await this.client.query('UPDATE user_data SET announcement_subscriptions = $2 WHERE id = $1', [chatId, JSON.stringify([])])

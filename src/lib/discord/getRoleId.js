@@ -1,25 +1,24 @@
 import axios from 'axios'
+import dotenv from 'dotenv'
+import logger from '../../utils/handle-logs/logger.js'
 
-const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
-const GUILD_ID = process.env.GUILD_ID
+// See getChannelName.js: reading process.env at module load without dotenv.config() here
+// yields undefined, because imports run before the importing module's dotenv call.
+dotenv.config()
 
 export default async function getRoleNameById(roleId) {
   try {
-    const response = await axios.get(`https://discord.com/api/v10/guilds/${GUILD_ID}/roles`, {
+    const response = await axios.get(`https://discord.com/api/v10/guilds/${process.env.GUILD_ID}/roles`, {
       headers: {
-        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+        Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
       },
     })
 
     const role = response.data.find((role) => role.id === roleId)
 
-    if (role) {
-      return role.name
-    } else {
-      throw new Error(`Role with ID ${roleId} not found`)
-    }
+    return role ? role.name : null
   } catch (error) {
-    console.error(`Error fetching role name: ${error.message}`)
+    logger.error(`Error fetching role name for ${roleId}: ${error.response?.data?.message || error.message}`)
     return null
   }
 }

@@ -48,6 +48,8 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
         listOfSubscriptions = await ClientDb.getActiveAnnouncementSubscriptions(chatId)
       }
 
+      listOfSubscriptions = await backfillMissingNames(chatId, listOfSubscriptions)
+
       const message = `You are a verified member! 🎉\nYour role has been verified, you now have access to exclusive announcements and updates, select channel.`
 
       msgId
@@ -62,6 +64,46 @@ async function handleDiscordAnnouncementCommand(bot, chatId, msgId) {
     }
   } catch (error) {
     logger.error(`Error handling Discord announcement command: ${error.message}`)
+  }
+}
+
+/**
+ * Repairs subscriptions stored without a channel name.
+ *
+ * getChannelName used to read the bot token before dotenv had loaded, so it returned
+ * undefined — and JSON.stringify drops undefined keys, leaving the name absent entirely
+ * and the menu rendering "undefined". Re-fetch those names in place, preserving each
+ * subscription's on/off state rather than resetting it.
+ */
+async function backfillMissingNames(chatId, subscriptions) {
+  if (!Array.isArray(subscriptions) || !subscriptions.some((sub) => !sub?.name)) {
+    return subscriptions
+  }
+
+  try {
+    const repaired = await Promise.all(
+      subscriptions.map(async (sub) => {
+        if (sub.name) return sub
+
+        const fetched = await getChannelName(sub.channelId)
+
+        // getChannelName falls back to the raw id when Discord is unreachable. Persisting
+        // that would bake a transient outage into the data permanently, since the entry
+        // would then look repaired and never be retried. Only store a real name.
+        return fetched && fetched !== sub.channelId ? { ...sub, name: fetched } : sub
+      }),
+    )
+
+    if (repaired.some((sub, i) => sub.name !== subscriptions[i]?.name)) {
+      await ClientDb.setAnnouncementSubscriptions(chatId, repaired)
+      logger.info(`Backfilled missing channel names for chat id ${chatId}`)
+    }
+
+    // Whatever could not be resolved still needs a label, or the menu shows "undefined".
+    return repaired.map((sub) => (sub.name ? sub : { ...sub, name: sub.channelId }))
+  } catch (err) {
+    logger.error(`Failed to backfill channel names for chat id ${chatId}: ${err.message}`)
+    return subscriptions.map((sub) => (sub?.name ? sub : { ...sub, name: sub?.channelId }))
   }
 }
 
