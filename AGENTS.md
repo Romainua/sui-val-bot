@@ -123,11 +123,11 @@ Two Dockerfiles exist:
 
 ## Growth handoff classification
 
-Every pull request must explicitly classify its growth impact before merge.
+Every pull request must have exactly one growth classification label before merge.
 
-1. Add the `skip-growth` label when the change has no meaningful user-facing content value. Typical examples include typography or formatting changes, routine dependency updates, CI maintenance, internal refactoring, database maintenance with no user impact, and tiny fixes with no useful external story.
-2. Do not add `skip-growth` for important bug fixes, user-visible behavior changes, launches, announcements, measurable product improvements, or anything that could help users understand or adopt the product.
-3. If the classification is uncertain, do not add `skip-growth`. Let the Source Owner or Growth team decide in Notion.
-4. Complete the **Growth impact** section in the pull request template and ensure the selected option matches the PR labels.
-5. An agent with label permissions must apply `skip-growth` before merge. If the agent cannot apply labels, it must state that clearly in the PR handoff.
-
+1. Add `growth-content` for important bug fixes, user-visible behavior changes, launches, announcements, measurable product improvements, or anything that could help users understand or adopt the product.
+2. Add `skip-growth` when the change has no meaningful user-facing content value. Typical examples include typography or formatting changes, routine dependency updates, CI maintenance, internal refactoring, database maintenance with no user impact, and tiny fixes with no useful external story.
+3. Never apply both labels. The **Growth classification** check fails when neither label exists or when both labels are present.
+4. If the classification is uncertain, use `growth-content` so the Source Owner or Growth team can decide in Notion.
+5. Complete the **Growth impact** section in the pull request template and ensure the selected option matches the PR label.
+6. An agent with label permissions must apply the selected label before merge. If the agent cannot apply labels, it must state that clearly in the PR handoff.
