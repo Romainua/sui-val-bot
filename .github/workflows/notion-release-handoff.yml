@@ -1,0 +1,33 @@
+name: Record merged PR in Notion
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  contents: read
+
+jobs:
+  create-notion-intake:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DATA_SOURCE_ID: ${{ vars.NOTION_DATA_SOURCE_ID }}
+      NOTION_AREA: ${{ vars.NOTION_AREA }}
+
+    steps:
+      # This workflow receives a secret. Always check out the trusted base branch,
+      # never the pull request head branch.
+      - name: Check out trusted base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Create Notion marketing intake item
+        run: node .github/scripts/notion-release-handoff.mjs
