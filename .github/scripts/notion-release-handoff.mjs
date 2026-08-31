@@ -14,25 +14,10 @@ if (missingEnvironment.length > 0) {
 const event = JSON.parse(
   await fs.readFile(process.env.GITHUB_EVENT_PATH, 'utf8')
 )
-const pullRequest = event.pull_request
-
-if (!pullRequest?.merged || !pullRequest.merge_commit_sha) {
-  console.log('Pull request was not merged; nothing to send to Notion')
-  process.exit(0)
-}
 
 const notionToken = process.env.NOTION_TOKEN
 const dataSourceId = process.env.NOTION_DATA_SOURCE_ID
 const notionArea = process.env.NOTION_AREA
-const mergeCommitSha = pullRequest.merge_commit_sha
-
-const cleanText = (value, maximumLength = 1900) => {
-  const text = String(value ?? '')
-    .replaceAll('\u0000', '')
-    .trim()
-
-  return text.slice(0, maximumLength)
-}
 
 const notionRequest = async (path, options = {}) => {
   const response = await fetch(`https://api.notion.com${path}`, {
@@ -54,6 +39,40 @@ const notionRequest = async (path, options = {}) => {
   }
 
   return responseText ? JSON.parse(responseText) : null
+}
+
+if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
+  const connectionCheck = await notionRequest(
+    `/v1/data_sources/${encodeURIComponent(dataSourceId)}/query`,
+    {
+      method: 'POST',
+      body: {
+        page_size: 1
+      }
+    }
+  )
+
+  console.log(
+    `Notion connection verified; query returned ${connectionCheck.results?.length ?? 0} row(s)`
+  )
+  process.exit(0)
+}
+
+const pullRequest = event.pull_request
+
+if (!pullRequest?.merged || !pullRequest.merge_commit_sha) {
+  console.log('Pull request was not merged; nothing to send to Notion')
+  process.exit(0)
+}
+
+const mergeCommitSha = pullRequest.merge_commit_sha
+
+const cleanText = (value, maximumLength = 1900) => {
+  const text = String(value ?? '')
+    .replaceAll('\u0000', '')
+    .trim()
+
+  return text.slice(0, maximumLength)
 }
 
 const duplicateCheck = await notionRequest(
