@@ -1,0 +1,52 @@
+name: Validate growth classification
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  validate-growth-classification:
+    name: Growth classification
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+
+    steps:
+      - name: Require exactly one growth label
+        shell: bash
+        run: |
+          has_growth_content=0
+          has_skip_growth=0
+
+          if [[ ",${PR_LABELS}," == *",growth-content,"* ]]; then
+            has_growth_content=1
+          fi
+
+          if [[ ",${PR_LABELS}," == *",skip-growth,"* ]]; then
+            has_skip_growth=1
+          fi
+
+          label_count=$((has_growth_content + has_skip_growth))
+
+          if [[ "${label_count}" -ne 1 ]]; then
+            echo "::error::Add exactly one growth label: growth-content or skip-growth."
+            exit 1
+          fi
+
+          if [[ "${has_growth_content}" -eq 1 ]]; then
+            echo "Growth classification: growth-content"
+          else
+            echo "Growth classification: skip-growth"
+          fi
