@@ -1,6 +1,7 @@
 name: Record merged PR in Notion
 
 on:
+  workflow_dispatch:
   pull_request_target:
     branches:
       - main
@@ -12,7 +13,7 @@ permissions:
 
 jobs:
   create-notion-intake:
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -29,5 +30,5 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
-      - name: Create Notion marketing intake item
+      - name: Check Notion connection or create intake item
         run: node .github/scripts/notion-release-handoff.mjs
