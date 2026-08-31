@@ -13,7 +13,10 @@ permissions:
 
 jobs:
   create-notion-intake:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-growth'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
