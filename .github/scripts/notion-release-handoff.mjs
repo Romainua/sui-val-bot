@@ -157,12 +157,37 @@ if (missingFields.length > 0) {
   )
 }
 
+const narrativeMinimumLengths = {
+  'User-facing change': 20,
+  'Why it matters': 20,
+  'Suggested content angle': 20
+}
+
+for (const [fieldName, minimumLength] of Object.entries(
+  narrativeMinimumLengths
+)) {
+  const value = handoff[fieldName]
+  if (
+    /^(n\/?a|none|tbd|todo|not applicable)$/i.test(value) ||
+    value.length < minimumLength
+  ) {
+    throw new Error(`${fieldName} does not contain a usable growth handoff`)
+  }
+}
+
 if (!allowedUpdateTypes.has(handoff['Update type'])) {
   throw new Error(`Unknown Update type: ${handoff['Update type']}`)
 }
 
 if (!allowedUserImpacts.has(handoff['User impact'])) {
   throw new Error(`Unknown User impact: ${handoff['User impact']}`)
+}
+
+if (
+  handoff['Assets / demo'].toLowerCase() !== 'n/a' &&
+  !/https?:\/\/\S+/i.test(handoff['Assets / demo'])
+) {
+  throw new Error('Assets / demo must contain a URL or exactly N/A')
 }
 
 const targetUsers = handoff['Target users']
