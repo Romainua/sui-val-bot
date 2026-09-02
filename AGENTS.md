@@ -129,5 +129,8 @@ Every pull request must have exactly one growth classification label before merg
 2. Add `skip-growth` when the change has no meaningful user-facing content value. Typical examples include typography or formatting changes, routine dependency updates, CI maintenance, internal refactoring, database maintenance with no user impact, and tiny fixes with no useful external story.
 3. Never apply both labels. The **Growth classification** check fails when neither label exists or when both labels are present.
 4. If the classification is uncertain, use `growth-content` so the Source Owner or Growth team can decide in Notion.
-5. Complete the **Growth impact** section in the pull request template and ensure the selected option matches the PR label.
-6. An agent with label permissions must apply the selected label before merge. If the agent cannot apply labels, it must state that clearly in the PR handoff.
+5. For `growth-content`, complete every field in the **Growth handoff** section. The quality gate fails when a required field is empty or uses an unsupported Notion option.
+6. Write **User-facing change** and **Why it matters** in concise, plain English. Do not paste implementation details, test logs, or the full technical summary into these fields.
+7. Use exact Notion option names for **Update type**, **Target users**, and **User impact** so the automation can populate the database without manual cleanup.
+8. Use a screenshot, recording, or preview URL for **Assets / demo** when available; use `N/A` only when an asset does not exist yet.
+9. An agent with label permissions must apply the selected label before merge. If the agent cannot apply labels, it must state that clearly in the PR handoff.
