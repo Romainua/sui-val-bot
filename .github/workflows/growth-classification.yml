@@ -8,6 +8,7 @@ on:
       - opened
       - reopened
       - synchronize
+      - edited
       - labeled
       - unlabeled
       - ready_for_review
@@ -22,31 +23,170 @@ jobs:
     timeout-minutes: 2
     env:
       PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+      PR_BODY: ${{ github.event.pull_request.body }}
 
     steps:
-      - name: Require exactly one growth label
+      - name: Validate label and growth handoff
         shell: bash
         run: |
-          has_growth_content=0
-          has_skip_growth=0
+          node --input-type=module <<'NODE'
+          const labels = new Set(
+            String(process.env.PR_LABELS ?? '')
+              .split(',')
+              .map((label) => label.trim())
+              .filter(Boolean)
+          )
 
-          if [[ ",${PR_LABELS}," == *",growth-content,"* ]]; then
-            has_growth_content=1
-          fi
+          const hasGrowthContent = labels.has('growth-content')
+          const hasSkipGrowth = labels.has('skip-growth')
 
-          if [[ ",${PR_LABELS}," == *",skip-growth,"* ]]; then
-            has_skip_growth=1
-          fi
+          if (Number(hasGrowthContent) + Number(hasSkipGrowth) !== 1) {
+            console.error(
+              '::error::Add exactly one growth label: growth-content or skip-growth.'
+            )
+            process.exit(1)
+          }
 
-          label_count=$((has_growth_content + has_skip_growth))
+          if (hasSkipGrowth) {
+            console.log('Growth classification: skip-growth')
+            process.exit(0)
+          }
 
-          if [[ "${label_count}" -ne 1 ]]; then
-            echo "::error::Add exactly one growth label: growth-content or skip-growth."
-            exit 1
-          fi
+          const fieldNames = [
+            'Update type',
+            'User-facing change',
+            'Why it matters',
+            'Target users',
+            'User impact',
+            'Suggested content angle',
+            'Assets / demo'
+          ]
 
-          if [[ "${has_growth_content}" -eq 1 ]]; then
-            echo "Growth classification: growth-content"
-          else
-            echo "Growth classification: skip-growth"
-          fi
+          const allowedUpdateTypes = new Set([
+            'New Feature',
+            'Improvement',
+            'Bug Fix',
+            'Launch',
+            'Partnership',
+            'Validator or Network Update',
+            'Delegation or Capacity',
+            'Infrastructure or Hardware',
+            'Data or Milestone',
+            'Announcement or Event',
+            'Incident or Recovery',
+            'Deprecation'
+          ])
+
+          const allowedTargetUsers = new Set([
+            'SUI Holders',
+            'Stakers',
+            'Validators',
+            'Developers',
+            'Partners or Foundation',
+            'Community'
+          ])
+
+          const allowedUserImpacts = new Set(['Low', 'Medium', 'High'])
+
+          const parseGrowthHandoff = (body) => {
+            const withoutComments = String(body ?? '').replace(/<!--[\s\S]*?-->/g, '')
+            const lines = withoutComments.replaceAll('\r', '').split('\n')
+            const headingIndex = lines.findIndex((line) =>
+              /^##\s+Growth handoff\s*$/i.test(line.trim())
+            )
+
+            if (headingIndex === -1) return null
+
+            const values = Object.fromEntries(fieldNames.map((name) => [name, []]))
+            let activeField = null
+
+            for (const line of lines.slice(headingIndex + 1)) {
+              if (/^##\s+/.test(line.trim())) break
+
+              const fieldMatch = line.match(
+                /^(Update type|User-facing change|Why it matters|Target users|User impact|Suggested content angle|Assets \/ demo)\s*:\s*(.*)$/i
+              )
+
+              if (fieldMatch) {
+                activeField = fieldNames.find(
+                  (name) => name.toLowerCase() === fieldMatch[1].toLowerCase()
+                )
+                values[activeField].push(fieldMatch[2])
+              } else if (activeField) {
+                values[activeField].push(line)
+              }
+            }
+
+            return Object.fromEntries(
+              Object.entries(values).map(([name, parts]) => [
+                name,
+                parts.join('\n').trim()
+              ])
+            )
+          }
+
+          const handoff = parseGrowthHandoff(process.env.PR_BODY)
+
+          if (!handoff) {
+            console.error(
+              '::error::A growth-content PR must contain a "## Growth handoff" section.'
+            )
+            process.exit(1)
+          }
+
+          const errors = []
+
+          for (const fieldName of fieldNames) {
+            if (!handoff[fieldName]) errors.push(`${fieldName} is required.`)
+          }
+
+          if (
+            handoff['Update type'] &&
+            !allowedUpdateTypes.has(handoff['Update type'])
+          ) {
+            errors.push(
+              `Update type must be one of: ${[...allowedUpdateTypes].join(', ')}.`
+            )
+          }
+
+          if (
+            handoff['User impact'] &&
+            !allowedUserImpacts.has(handoff['User impact'])
+          ) {
+            errors.push('User impact must be Low, Medium, or High.')
+          }
+
+          if (handoff['Target users']) {
+            const targetUsers = handoff['Target users']
+              .split(/[,;]/)
+              .map((value) => value.trim())
+              .filter(Boolean)
+            const invalidTargetUsers = targetUsers.filter(
+              (value) => !allowedTargetUsers.has(value)
+            )
+
+            if (targetUsers.length === 0) {
+              errors.push('Target users must contain at least one audience.')
+            }
+
+            if (invalidTargetUsers.length > 0) {
+              errors.push(
+                `Unknown target users: ${invalidTargetUsers.join(', ')}. Allowed values: ${[
+                  ...allowedTargetUsers
+                ].join(', ')}.`
+              )
+            }
+          }
+
+          if (handoff['Assets / demo']?.toLowerCase() === 'none') {
+            errors.push('Use a URL or N/A for Assets / demo, not "none".')
+          }
+
+          if (errors.length > 0) {
+            for (const error of errors) console.error(`::error::${error}`)
+            process.exit(1)
+          }
+
+          console.log('Growth classification: growth-content')
+          console.log('Structured Growth handoff: valid')
+          NODE
